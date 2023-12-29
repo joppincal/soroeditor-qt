@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QPlainTextEdit, QScrollBar, QWidget, QMainWindow
 from random import randint
 
 from soroeditor import __global__ as g
+from soroeditor import DataGet, DataSave
 
 class MainWindow(QMainWindow):
     def __init__(self):
