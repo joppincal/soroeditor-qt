@@ -1,9 +1,11 @@
+import os
 import sys
-import yaml
 
+from logging import getLogger, Formatter, handlers, DEBUG
 from pprint import pprint
 from random import randint
 from typing import Optional
+import yaml
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtGui import QResizeEvent, QWheelEvent, QAction, QKeySequence
 from PySide6.QtWidgets import QPushButton, QTextEdit, QScrollArea, QLabel, QPlainTextEdit, QScrollBar, QFrame, QWidget, QMainWindow
@@ -130,6 +132,7 @@ class TextEditor(QWidget):
         for textBox in textBoxes:
             while textBox.verticalScrollBar().maximum() <= textBox.verticalScrollBar().pageStep():
                 textBox.appendPlainText('\n')
+                textBox.verticalScrollBar().setValue(0)
             while textBox.verticalScrollBar().maximum() == textBox.verticalScrollBar().value():
                 textBox.verticalScrollBar().setValue(textBox.verticalScrollBar().maximum() - 2)
                 textBox.appendPlainText('\n')
@@ -194,10 +197,15 @@ class DataGetClass:
 
 
 class DataSaveClass:
-    def makeSaveData(self):
-        return {i: text for i, text in enumerate(DataGetClass().getAllCurrentText())}
+    def makeSaveData(self) -> dict:
+        data = {}
+        texts = DataGetClass().getAllCurrentText()
+        return data
 
-    def SaveFile(self, data:dict, file_path:str):
+    def makeDataToYaml(self, data:dict):
+        return yaml.safe_dump(data, encoding='utf-8', allow_unicode=True)
+
+    def writeToFile(self, data:dict, file_path:str):
         try:
             with open(file_path, mode='wt', encoding='utf-8') as f:
                 # ファイルに書き込む
@@ -207,11 +215,37 @@ class DataSaveClass:
         except (FileNotFoundError, UnicodeDecodeError, yaml.YAMLError) as e:
             error_type = type(e).__name__
             error_message = str(e)
+            logger.error(f"An error of type {error_type} occurred while writing to the file {file_path}: {error_message}")
+        else:
+            logger.info(f'Wrote to the file: {file_path}')
 
 
-if __name__ == '__main__':
+def log_setting():
+    global logger
+    if not os.path.exists('./log'):
+        os.mkdir('./log')
+    logger = getLogger(__name__)
+    logger.setLevel(DEBUG)
+    formater = Formatter('{asctime} {name:<21s} {levelname:<8s} {message}', style='{')
+    handler = handlers.RotatingFileHandler(
+        filename='./log/soroeditor.log',
+        encoding='utf-8',
+        maxBytes=102400,
+        backupCount=10)
+    handler.setFormatter(formater)
+    logger.addHandler(handler)
+
+def main():
+    log_setting()
+    logger.info('===Start Application===')
     app = QtWidgets.QApplication([])
     mainWindow = MainWindow()
     mainWindow.show()
     mainWindow.makeLayout()
-    sys.exit(app.exec())
+    app.exec()
+    logger.info('===Close Application===')
+    sys.exit()
+
+
+if __name__ == '__main__':
+    main()
