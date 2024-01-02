@@ -2,3 +2,5 @@ poetry.lock
 tests
 log
 __pycache__
+*.sep
+*.sepf

@@ -12,7 +12,6 @@ def main():
     app = QtWidgets.QApplication([])
     mainWindow = MainWindow()
     mainWindow.show()
-    mainWindow.makeLayout()
     app.exec()
     g.logger.info('===Close Application===')
     sys.exit()
