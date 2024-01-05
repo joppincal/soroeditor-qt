@@ -1,7 +1,7 @@
 from soroeditor import __global__ as g
 
 
-def writeToFile(data:str, filePath:str):
+def writeToFile(data:str, filePath:str) -> bool:
     try:
         with open(filePath, mode='wt', encoding='utf-8') as f:
             # ファイルに書き込む
@@ -10,8 +10,10 @@ def writeToFile(data:str, filePath:str):
         errorType = type(e).__name__
         errorMessage = str(e)
         g.logger.error(f"An error of type {errorType} occurred while writing to the file {filePath}: {errorMessage}")
+        return False
     else:
         g.logger.info(f'Wrote to the file: {filePath}')
+        return True
 
 def openFile(filePath:str) -> (str | None):
     try:

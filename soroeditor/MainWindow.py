@@ -1,9 +1,9 @@
 import os
 import sys
 from PySide6 import QtCore, QtWidgets
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QActionGroup, QKeySequence
-from PySide6.QtWidgets import QFileDialog, QMainWindow, QPlainTextEdit, QScrollBar, QToolBar, QToolButton, QWidget
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QTextCursor
+from PySide6.QtWidgets import QFileDialog, QLabel, QMainWindow, QMessageBox, QPlainTextEdit, QScrollBar, QWidget
 
 from soroeditor import DataOperation, __global__ as g
 
@@ -12,19 +12,23 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.resize(800, 600)
         self.setWindowTitle('SoroEditor')
+        self.show()
         self.makeLayout()
-        g.filePath = None
-        g.data = None
+        global currentFilePath, currentData
+        currentFilePath = None
+        currentData = {0:'', 1:'', 2:''}
         if len(sys.argv) >= 2:
             if os.path.isfile(sys.argv[1]):
                 sys.argv[1] = os.path.abspath(sys.argv[1]).replace('\\', '/')
                 data = DataOperation.openProjectFile(sys.argv[1])
                 if type(data) is dict:
                     DataOperation.setTextInTextBoxes(data)
-                    g.filePath = sys.argv[1]
-                    g.data = data
-        if g.filePath:
-            self.setWindowTitle('SoroEditor - '+g.filePath)
+                    currentFilePath = sys.argv[1]
+                    currentData = data
+        self.timer = QTimer(self)
+        self.timer.setInterval(100)
+        self.timer.timeout.connect(self.loop)
+        self.timer.start()
 
     def makeLayout(self):
         self.makeQActions()
@@ -57,40 +61,40 @@ class MainWindow(QMainWindow):
         menu['helpMenu'].addActions(list(g.qAction['help'].values()))
 
     def makeToolBar(self):
-        toolBarSettings = {0:{'area':'Top', 'names':['NewFile', 'OpenFile', 'Save', 'SaveAs']}, 1:{'area':'Bottom', 'names':['Setting']}, 2:{'area':'Left', 'names':['Import', 'Export']}, 3:{'area':'Bottom', 'names':[]}} # temporary
+        g.toolBarSettings = {0:{'area':'Top', 'names':['NewFile', 'OpenFile', 'Save', 'SaveAs']}, 1:{'area':'Bottom', 'names':['Setting']}, 2:{'area':'Left', 'names':['Import', 'Export']}, 3:{'area':'Bottom', 'names':['CurrentPlace']}} # temporary
         toolButtonsElements = {
-            'NewFile':{'text':'新規作成', 'icon':None, 'action':g.qAction['file']['NewFile']},
-            'OpenFile':{'text':'ファイルを開く', 'icon':None, 'action':g.qAction['file']['OpenFile']},
-            'Save':{'text':'上書き保存', 'icon':None, 'action':g.qAction['file']['Save']},
-            'SaveAs':{'text':'名前をつけて保存', 'icon':None, 'action':g.qAction['file']['SaveAs']},
-            'Import':{'text':'インポート', 'icon':None, 'action':g.qAction['file']['Import']},
-            'Export':{'text':'エクスポート', 'icon':None, 'action':g.qAction['file']['Export']},
-            'ProjectSetting':{'text':'プロジェクト設定', 'icon':None, 'action':g.qAction['file']['ProjectSetting']},
-            'Reload':{'text':'再読込', 'icon':None, 'action':g.qAction['file']['Reload']},
-            'Setting':{'text':'設定', 'icon':None, 'action':g.qAction['setting']['Setting']},
-            'Search':{'text':'検索', 'icon':None, 'action':g.qAction['search']['Search']},
-            'Replace':{'text':'置換', 'icon':None, 'action':g.qAction['search']['Replace']},
-            'Template':{'text':'定型文', 'icon':None, 'action':g.qAction['template']['Template']},
-            'Bookmark':{'text':'付箋', 'icon':None, 'action':g.qAction['bookmark']['Bookmark']},
-            'Undo':{'text':'取り消し', 'icon':None, 'action':g.qAction['edit']['Undo']},
-            'Repeat':{'text':'取り消しを戻す', 'icon':None, 'action':g.qAction['edit']['Repeat']},
+            'NewFile':{'text':'新規作成', 'icon':None, 'actions':[g.qAction['file']['NewFile']]},
+            'OpenFile':{'text':'ファイルを開く', 'icon':None, 'actions':[g.qAction['file']['OpenFile']]},
+            'Save':{'text':'上書き保存', 'icon':None, 'actions':[g.qAction['file']['Save']]},
+            'SaveAs':{'text':'名前をつけて保存', 'icon':None, 'actions':[g.qAction['file']['SaveAs']]},
+            'Import':{'text':'インポート', 'icon':None, 'actions':[g.qAction['file']['Import']]},
+            'Export':{'text':'エクスポート', 'icon':None, 'actions':[g.qAction['file']['Export']]},
+            'ProjectSetting':{'text':'プロジェクト設定', 'icon':None, 'actions':[g.qAction['file']['ProjectSetting']]},
+            'Reload':{'text':'再読込', 'icon':None, 'actions':[g.qAction['file']['Reload']]},
+            'Setting':{'text':'設定', 'icon':None, 'actions':[g.qAction['setting']['Setting']]},
+            'Search':{'text':'検索', 'icon':None, 'actions':[g.qAction['search']['Search']]},
+            'Replace':{'text':'置換', 'icon':None, 'actions':[g.qAction['search']['Replace']]},
+            'Template':{'text':'定型文', 'icon':None, 'actions':[g.qAction['template']['Template']]},
+            'Bookmark':{'text':'付箋', 'icon':None, 'actions':[g.qAction['bookmark']['Bookmark']]},
+            'Undo':{'text':'取り消し', 'icon':None, 'actions':[g.qAction['edit']['Undo']]},
+            'Repeat':{'text':'取り消しを戻す', 'icon':None, 'actions':[g.qAction['edit']['Repeat']]},
 
-            'CurrentPlace':{'text':'カーソルの現在位置', 'icon':None, 'action':None},
-            'HotKeys1':{'text':'[Ctrl+O]: 開く  [Ctrl+S]: 上書き保存  [Ctrl+Shift+S]: 名前をつけて保存  [Ctrl+R]: 最後に使ったファイルを開く（起動直後のみ）', 'icon':None, 'action':None},
-            'HotKeys2':{'text':'[Enter]: 1行追加(下)  [Ctrl+Enter]: 1行追加(上)  [Shift+Enter]: 通常改行  [Ctrl+Z]: 取り消し  [Ctrl+Shift+Z]: 取り消しを戻す  [Ctrl+F]: 検索  [Ctrl+Shift+F]: 置換', 'icon':None, 'action':None},
-            'HotKeys3':{'text':'[Ctrl+Q][Alt+Q][Alt+<]: 左に移る  [Ctrl+W][Alt+W][Alt+>]: 右に移る', 'icon':None, 'action':None},
-            'infomation':{'text':'各機能情報', 'icon':None, 'action':None},
-            'kaomoji':{'text':'顔文字', 'icon':None, 'action':None},
-            'StatusBarMessage':{'text':'ステータスバー初期メッセージ', 'icon':None, 'action':None},
-            'Clock':{'text':'時計', 'icon':None, 'action':None},
-            'CountDown':{'text':'カウントダウン', 'icon':None, 'action':None},
-            'StopWatch':{'text':'ストップウォッチ', 'icon':None, 'action':None},
+            'CurrentPlace':{'text':'カーソルの現在位置', 'icon':None, 'actions':None},
+            'HotKeys1':{'text':'[Ctrl+O]: 開く  [Ctrl+S]: 上書き保存  [Ctrl+Shift+S]: 名前をつけて保存  [Ctrl+R]: 最後に使ったファイルを開く（起動直後のみ）', 'icon':None, 'actions':None},
+            'HotKeys2':{'text':'[Enter]: 1行追加(下)  [Ctrl+Enter]: 1行追加(上)  [Shift+Enter]: 通常改行  [Ctrl+Z]: 取り消し  [Ctrl+Shift+Z]: 取り消しを戻す  [Ctrl+F]: 検索  [Ctrl+Shift+F]: 置換', 'icon':None, 'actions':None},
+            'HotKeys3':{'text':'[Ctrl+Q][Alt+Q][Alt+<]: 左に移る  [Ctrl+W][Alt+W][Alt+>]: 右に移る', 'icon':None, 'actions':None},
+            'infomation':{'text':'各機能情報', 'icon':None, 'actions':None},
+            'kaomoji':{'text':'顔文字', 'icon':None, 'actions':None},
+            'StatusBarMessage':{'text':'ステータスバー初期メッセージ', 'icon':None, 'actions':None},
+            'Clock':{'text':'時計', 'icon':None, 'actions':None},
+            'CountDown':{'text':'カウントダウン', 'icon':None, 'actions':None},
+            'StopWatch':{'text':'ストップウォッチ', 'icon':None, 'actions':None},
         }
-        toolButtonStyle = 'TextOnly' # temporary
+        toolButtonStyle = 'IconOnly' # temporary
         toolButtonStyle = getattr(Qt.ToolButtonStyle, f'ToolButton{toolButtonStyle}')
         g.toolBars = {}
 
-        for i, toolBarSetting in toolBarSettings.items():
+        for i, toolBarSetting in g.toolBarSettings.items():
             area = getattr(Qt.ToolBarArea, f'{toolBarSetting["area"]}ToolBarArea')
             self.addToolBarBreak(area)
             toolBar = self.addToolBar(f'ツールバー{i+1}')
@@ -99,10 +103,17 @@ class MainWindow(QMainWindow):
 
             for name in toolBarSetting['names']:
                 elements = toolButtonsElements[name]
-                toolBar.addAction(elements['action'])
+                if elements['actions']:
+                    toolBar.addActions(elements['actions'])
+                else:
+                    label = QLabel()
+                    if elements['text']:
+                        label.setText(elements['text'])
+                    if elements['icon']:
+                        label.setPixmap(elements['icon'])
+                    toolBar.addWidget(label)
 
-            g.toolBars[i] = {}
-            g.toolBars[i]['toolbar'] = toolBar
+            g.toolBars[i] = toolBar
 
     def makeQActions(self):
         g.qAction = {}
@@ -149,13 +160,14 @@ class MainWindow(QMainWindow):
     def makeTextEditor(self):
         g.textEditor = TextEditor(self)
 
-    def saveFile(self):
-        if g.filePath:
-            DataOperation.saveProjectFile(g.filePath)
+    def saveFile(self) -> bool:
+        if currentFilePath:
+            ret = DataOperation.saveProjectFile(currentFilePath)
         else:
-            self.saveFileAs()
+            ret = self.saveFileAs()
+        return ret
 
-    def saveFileAs(self):
+    def saveFileAs(self) -> bool:
         filePath = QFileDialog().getSaveFileName(
             self,
             'SoroEditor - 名前をつけて保存',
@@ -163,7 +175,17 @@ class MainWindow(QMainWindow):
             'SoroEditor Project File(*.sepf *.sep)',
             )[0]
         if filePath:
-            DataOperation.saveProjectFile(filePath)
+            ret = DataOperation.saveProjectFile(filePath)
+        else:
+            ret = False
+        if ret:
+            global currentFilePath
+            currentFilePath = filePath
+            self.setWindowTitle(f'SoroEditor - {filePath}')
+        return ret
+
+    def isDataChanged(self) -> bool:
+        return currentData != DataOperation.makeSaveData()
 
     def openFile(self):
         filePath = QFileDialog().getOpenFileName(
@@ -174,13 +196,57 @@ class MainWindow(QMainWindow):
             )[0]
         if filePath:
             data = DataOperation.openProjectFile(filePath)
-            DataOperation.setTextInTextBoxes(data)
-            self.setWindowTitle('SoroEditor - '+filePath)
+            if data:
+                DataOperation.setTextInTextBoxes(data)
+                global currentFilePath
+                currentFilePath = filePath
+            self.setWindowTitle(f'SoroEditor - {filePath}')
+
+    def setCurrentPlaceLabel(self):
+        QPlainTextEdit().textCursor().positionInBlock()
+        widget = self.focusWidget()
+        currentPlace = []
+        if widget and type(widget) is QPlainTextEdit:
+            currentPlace = [self.focusWidget().textCursor().blockNumber(), self.focusWidget().textCursor().positionInBlock()]
+        #print(widget, *currentPlace)
+
+    def loop(self):
+        title = 'SoroEditor - '
+        if currentFilePath:
+            title += currentFilePath
+        else:
+            title += '(無題)'
+        if self.isDataChanged():
+            title += '(更新)'
+        self.setWindowTitle(title)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        if self.isDataChanged():
+            messageBox = QMessageBox(self)
+            messageBox.setIcon(QMessageBox.Question)
+            messageBox.setWindowTitle('SoroEditor - 終了')
+            messageBox.setText(f'保存されていない変更があります\n閉じる前に保存しますか')
+            messageBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+            messageBox.setButtonText(QMessageBox.Save, '保存(&Y)')
+            messageBox.setButtonText(QMessageBox.Discard, '保存しない(&N)')
+            messageBox.setButtonText(QMessageBox.Cancel, 'キャンセル(&C)')
+            messageBox.setDefaultButton(QMessageBox.Save)
+            ret = messageBox.exec()
+            if ret == QMessageBox.Save:
+                ret = self.saveFile()
+                if not ret:
+                    return event.ignore()
+            elif ret == QMessageBox.Discard:
+                pass
+            elif ret == QMessageBox.Cancel:
+                return event.ignore()
+        return super().closeEvent(event)
 
 
 class TextEditor(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
+        self.parent = parent
         self.makeLayout()
 
     def makeLayout(self):
@@ -205,6 +271,14 @@ class TextEditor(QWidget):
         self.hlayout.addWidget(mainScrollBar)
 
         self.addReturn()
+        self.moveToTop()
+
+    def moveToTop(self):
+        for textBox in g.textBoxes:
+            textBox.verticalScrollBar().setValue(0)
+            cursor = QTextCursor(textBox.firstVisibleBlock())
+            textBox.setTextCursor(cursor)
+            textBox.textCursor()
 
     def addReturn(self):
         for textBox in g.textBoxes:
@@ -256,4 +330,4 @@ class TextEditor(QWidget):
 
     @QtCore.Slot()
     def cursorPositionChanged(self):
-        return
+        self.parent.setCurrentPlaceLabel()

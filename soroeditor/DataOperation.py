@@ -21,7 +21,7 @@ def makeSaveData() -> dict:
     data = {}
     texts = getAllCurrentText()
     for i, text in enumerate(texts):
-        data[i] = text
+        data[i] = text.rstrip('\r\n')
     return data
 
 def makeDataToYaml(data:dict) -> str:
@@ -31,8 +31,8 @@ def makeDataToYaml(data:dict) -> str:
         g.logger.error(f'Failed to dump Yaml data: {e}')
         # ファイルが読み込めなかった場合
 
-def saveProjectFile(filePath:str):
-    FileOperation.writeToFile(makeDataToYaml(makeSaveData()), filePath)
+def saveProjectFile(filePath:str) -> bool:
+    return FileOperation.writeToFile(makeDataToYaml(makeSaveData()), filePath)
 
 def openProjectFile(filePath) -> (dict | None):
     yml = FileOperation.openFile(filePath)
@@ -50,3 +50,4 @@ def setTextInTextBoxes(dic:dict):
             pass
             return
         g.textBoxes[i].setPlainText(dic[i])
+        g.textEditor.addReturn()
