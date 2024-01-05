@@ -255,7 +255,7 @@ class TextEditor(QWidget):
         # textboxにSlotを設定
         for textBox in g.textBoxes:
             textBox.verticalScrollBar().valueChanged.connect(self.textBoxScrollBarValueChanged)
-            textBox.verticalScrollBar().setVisible(False)
+            textBox.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             textBox.cursorPositionChanged.connect(self.cursorPositionChanged)
 
         global mainScrollBar
