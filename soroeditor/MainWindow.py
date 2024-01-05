@@ -2,8 +2,8 @@ import os
 import sys
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QTextCursor
-from PySide6.QtWidgets import QFileDialog, QLabel, QMainWindow, QMessageBox, QPlainTextEdit, QScrollBar, QWidget
+from PySide6.QtGui import QAction, QCloseEvent, QFocusEvent, QKeySequence, QTextCursor
+from PySide6.QtWidgets import QFileDialog, QLabel, QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit, QScrollBar, QWidget
 
 from soroeditor import DataOperation, __global__ as g
 
@@ -14,9 +14,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('SoroEditor')
         self.show()
         self.makeLayout()
-        global currentFilePath, currentData
+        global currentFilePath, latestData
         currentFilePath = None
-        currentData = {0:'', 1:'', 2:''}
+        latestData = {0:'', 1:'', 2:''}
         if len(sys.argv) >= 2:
             if os.path.isfile(sys.argv[1]):
                 sys.argv[1] = os.path.abspath(sys.argv[1]).replace('\\', '/')
@@ -24,7 +24,7 @@ class MainWindow(QMainWindow):
                 if type(data) is dict:
                     DataOperation.setTextInTextBoxes(data)
                     currentFilePath = sys.argv[1]
-                    currentData = data
+                    latestData = data
         self.timer = QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.loop)
@@ -92,7 +92,7 @@ class MainWindow(QMainWindow):
         }
         toolButtonStyle = 'IconOnly' # temporary
         toolButtonStyle = getattr(Qt.ToolButtonStyle, f'ToolButton{toolButtonStyle}')
-        g.toolBars = {}
+        g.toolBars = []
 
         for i, toolBarSetting in g.toolBarSettings.items():
             area = getattr(Qt.ToolBarArea, f'{toolBarSetting["area"]}ToolBarArea')
@@ -109,11 +109,12 @@ class MainWindow(QMainWindow):
                     label = QLabel()
                     if elements['text']:
                         label.setText(elements['text'])
+                        label.setObjectName(name)
                     if elements['icon']:
                         label.setPixmap(elements['icon'])
                     toolBar.addWidget(label)
 
-            g.toolBars[i] = toolBar
+            g.toolBars.append(toolBar)
 
     def makeQActions(self):
         g.qAction = {}
@@ -185,7 +186,7 @@ class MainWindow(QMainWindow):
         return ret
 
     def isDataChanged(self) -> bool:
-        return currentData != DataOperation.makeSaveData()
+        return latestData != DataOperation.makeSaveData()
 
     def openFile(self):
         filePath = QFileDialog().getOpenFileName(
@@ -198,17 +199,34 @@ class MainWindow(QMainWindow):
             data = DataOperation.openProjectFile(filePath)
             if data:
                 DataOperation.setTextInTextBoxes(data)
-                global currentFilePath
+                global currentFilePath, latestData
                 currentFilePath = filePath
-            self.setWindowTitle(f'SoroEditor - {filePath}')
+                latestData = data
 
     def setCurrentPlaceLabel(self):
-        QPlainTextEdit().textCursor().positionInBlock()
         widget = self.focusWidget()
-        currentPlace = []
-        if widget and type(widget) is QPlainTextEdit:
-            currentPlace = [self.focusWidget().textCursor().blockNumber(), self.focusWidget().textCursor().positionInBlock()]
-        #print(widget, *currentPlace)
+        if widget:
+            if type(widget) is PlainTextEdit:
+                type_ = '本文'
+                index = g.textEdits.index(widget)
+                block = widget.textCursor().blockNumber()
+                positionInBlock = widget.textCursor().positionInBlock()
+            elif type(widget) is LineEdit:
+                type_ = 'タイトル'
+                index = g.lineEdits.index(widget)
+                block = None
+                positionInBlock = widget.cursorPosition()
+            else:
+                return
+
+            title = g.lineEdits[index].text()
+            for widget in [widget for toolBar in g.toolBars for widget in toolBar.children()]:
+                if widget.objectName() == 'CurrentPlace':
+                    text = f'{title if title else f"{index+1}列"} - {type_}: '\
+                        f'{"" if block is None else f"{block+1}段落"}{positionInBlock+1}文字'
+                    widget.setText(text)
+        else:
+            return
 
     def loop(self):
         title = 'SoroEditor - '
@@ -250,38 +268,47 @@ class TextEditor(QWidget):
         self.makeLayout()
 
     def makeLayout(self):
-        g.textBoxes = [QPlainTextEdit() for _ in range(3)]
+        g.textEdits = [PlainTextEdit() for _ in range(3)] # temporary
+        g.lineEdits = [LineEdit() for _ in range(3)] # temporary
+        g.textBoxStretches = [15, 60, 25] # temporary
 
-        # textboxにSlotを設定
-        for textBox in g.textBoxes:
-            textBox.verticalScrollBar().valueChanged.connect(self.textBoxScrollBarValueChanged)
-            textBox.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-            textBox.cursorPositionChanged.connect(self.cursorPositionChanged)
+        for textEdit in g.textEdits:
+            textEdit.verticalScrollBar().valueChanged.connect(self.textBoxScrollBarValueChanged)
+            textEdit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            textEdit.cursorPositionChanged.connect(self.cursorPositionChanged)
+            textEdit.focusReceived.connect(self.focusReceived)
+        for lineEdit in g.lineEdits:
+            lineEdit.cursorPositionChanged.connect(self.cursorPositionChanged)
+            lineEdit.focusReceived.connect(self.focusReceived)
 
         global mainScrollBar
         mainScrollBar = QScrollBar()
         mainScrollBar.valueChanged.connect(self.mainScrollBarValueChanged)
-        mainScrollBar.setRange(0, max([textBox.verticalScrollBar().maximum() for textBox in g.textBoxes]))
-        mainScrollBar.setPageStep(max([textBox.verticalScrollBar().pageStep() for textBox in g.textBoxes]))
+        mainScrollBar.setRange(0, max([textBox.verticalScrollBar().maximum() for textBox in g.textEdits]))
+        mainScrollBar.setPageStep(max([textBox.verticalScrollBar().pageStep() for textBox in g.textEdits]))
 
         self.hlayout = QtWidgets.QHBoxLayout(self)
+        self.vlayouts = [QtWidgets.QVBoxLayout() for _ in range(len(g.textEdits))]
 
-        for textBox in g.textBoxes:
-            self.hlayout.addWidget(textBox)
+        for vlayout, lineEdit, textEdit, stretch in zip(self.vlayouts, g.lineEdits, g.textEdits, g.textBoxStretches):
+            vlayout.addWidget(lineEdit)
+            vlayout.addWidget(textEdit)
+            self.hlayout.addLayout(vlayout, stretch)
+
         self.hlayout.addWidget(mainScrollBar)
 
         self.addReturn()
         self.moveToTop()
 
     def moveToTop(self):
-        for textBox in g.textBoxes:
+        for textBox in g.textEdits:
             textBox.verticalScrollBar().setValue(0)
             cursor = QTextCursor(textBox.firstVisibleBlock())
             textBox.setTextCursor(cursor)
             textBox.textCursor()
 
     def addReturn(self):
-        for textBox in g.textBoxes:
+        for textBox in g.textEdits:
             while textBox.verticalScrollBar().maximum() <= textBox.verticalScrollBar().pageStep():
                 textBox.appendPlainText('\n')
                 textBox.verticalScrollBar().setValue(0)
@@ -307,8 +334,8 @@ class TextEditor(QWidget):
         self.addReturn()
 
         newValue = self.sender().value()
-        maxMaximum = max([textBox.verticalScrollBar().maximum() for textBox in g.textBoxes])
-        pageStep = max([textBox.verticalScrollBar().pageStep() for textBox in g.textBoxes])
+        maxMaximum = max([textBox.verticalScrollBar().maximum() for textBox in g.textEdits])
+        pageStep = max([textBox.verticalScrollBar().pageStep() for textBox in g.textEdits])
 
         mainScrollBar.setRange(0, maxMaximum)
         mainScrollBar.setValue(newValue)
@@ -320,7 +347,7 @@ class TextEditor(QWidget):
         メインスクロールバーの値が変更された際に各テキストボックスのスクロールバーに値を反映する
         '''
         value = mainScrollBar.value()
-        for textBox in g.textBoxes:
+        for textBox in g.textEdits:
             bar = textBox.verticalScrollBar()
             diff = value - bar.maximum()
             if diff > 0:
@@ -331,3 +358,23 @@ class TextEditor(QWidget):
     @QtCore.Slot()
     def cursorPositionChanged(self):
         self.parent.setCurrentPlaceLabel()
+
+    @QtCore.Slot()
+    def focusReceived(self):
+        self.parent.setCurrentPlaceLabel()
+
+
+class PlainTextEdit(QPlainTextEdit):
+    focusReceived = QtCore.Signal()
+
+    def focusInEvent(self, event: QFocusEvent) -> None:
+        super().focusInEvent(event)
+        self.focusReceived.emit()
+
+
+class LineEdit(QLineEdit):
+    focusReceived = QtCore.Signal()
+
+    def focusInEvent(self, event: QFocusEvent) -> None:
+        super().focusInEvent(event)
+        self.focusReceived.emit()

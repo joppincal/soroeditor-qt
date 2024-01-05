@@ -9,13 +9,13 @@ def getCurrentText(i:int) -> str|None:
     numにて指定するテキストボックスのテキストを返す
     対応するテキストボックスが存在しない場合Noneを返す
     '''
-    return g.textBoxes[i].toPlainText() if len(g.textBoxes) > i else None
+    return g.textEdits[i].toPlainText() if len(g.textEdits) > i else None
 
 def getAllCurrentText() -> list[str|None]:
     '''
     すべてのテキストボックスのテキストをリストで返す
     '''
-    return [getCurrentText(i) for i in range(len(g.textBoxes))]
+    return [getCurrentText(i) for i in range(len(g.textEdits))]
 
 def makeSaveData() -> dict:
     data = {}
@@ -44,10 +44,10 @@ def openProjectFile(filePath) -> (dict | None):
         return dic
 
 def setTextInTextBoxes(dic:dict):
-    numberOfTextBoxes = len(g.textBoxes)
+    numberOfTextBoxes = len(g.textEdits)
     for i in range(100):
         if i not in dic or i >= numberOfTextBoxes:
             pass
             return
-        g.textBoxes[i].setPlainText(dic[i])
+        g.textEdits[i].setPlainText(dic[i])
         g.textEditor.addReturn()
