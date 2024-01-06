@@ -5,7 +5,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QFocusEvent, QKeySequence, QTextCursor
 from PySide6.QtWidgets import QFileDialog, QLabel, QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit, QScrollBar, QWidget
 
-from soroeditor import DataOperation, __global__ as g
+from soroeditor import DataOperation, ThirdPartyNoticesWindow, __global__ as g
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -155,7 +155,7 @@ class MainWindow(QMainWindow):
             'Help': QAction(text='ヘルプ(&H)', parent=self, triggered=print, shortcut=QKeySequence('F1')),
             'InitialStartupMessage': QAction(text='初回起動メッセージ(&F)', parent=self, triggered=print),
             'About': QAction(text='SoroEditorについて(&A)', parent=self, triggered=print),
-            'License': QAction(text='ライセンス情報(&L)', parent=self, triggered=print),
+            'License': QAction(text='ライセンス情報(&L)', parent=self, triggered=self.openSubWindow('ThirdPartyNoticesWindow')),
             }
 
     def makeTextEditor(self):
@@ -259,6 +259,19 @@ class MainWindow(QMainWindow):
             elif ret == QMessageBox.Cancel:
                 return event.ignore()
         return super().closeEvent(event)
+
+    def openSubWindow(self, type_: QWidget):
+        self.subWindows = {'ThirdPartyNoticesWindow': None}
+        if type_ == 'ThirdPartyNoticesWindow':
+            subWindow = ThirdPartyNoticesWindow.ThirdPartyNoticesWindow
+        else:
+            return
+
+        def inner():
+            self.subWindows[type_] = subWindow()
+            self.subWindows[type_].show()
+
+        return inner
 
 
 class TextEditor(QWidget):
