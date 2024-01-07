@@ -1,5 +1,5 @@
-from pprint import pprint
 from PySide6 import QtWidgets
+from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, QPlainTextEdit, QWidget
 
@@ -10,7 +10,7 @@ class ThirdPartyNoticesWindow(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle('SoroEditor - ライセンス情報')
-        self.resize(600, 500)
+        self.resize(700, 500)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.getThirdPartyNotices()
         self.makeLayout()
@@ -19,6 +19,21 @@ class ThirdPartyNoticesWindow(QWidget):
         self.textedit = QPlainTextEdit(self)
         self.textedit.setReadOnly(True)
         self.textedit.setTextInteractionFlags(self.textedit.textInteractionFlags() | Qt.TextSelectableByKeyboard)
+
+        fontCandidates = ['Consolas', 'SF Mono', 'DejaVu Sans Mono', 'Courier New', 'Courier']
+        selectedFont = None
+
+        for family in QFontDatabase.families():
+            if family in fontCandidates:
+                selectedFont = family
+                break
+
+        if not selectedFont:
+            selectedFont = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+
+        font = QFont(selectedFont)
+        self.textedit.setFont(font)
+
         self.listWidget = QListWidget(self)
         self.listWidget.itemSelectionChanged.connect(self.itemSelectionChanged)
 
@@ -39,5 +54,5 @@ class ThirdPartyNoticesWindow(QWidget):
     def getThirdPartyNotices(self):
         global ThirdPartyNotices
         ThirdPartyNotices = FileOperation.openFile('./ThirdPartyNotices.txt')
-        ThirdPartyNotices = [text.lstrip('\n') for text in ThirdPartyNotices.split('\n---------------------------------------------------------\n')[0:] if text]
+        ThirdPartyNotices = [text.lstrip('\n').rstrip('\n') for text in ThirdPartyNotices.split('\n---------------------------------------------------------\n')[0:] if text]
         ThirdPartyNotices = {text.split('\n',1)[0]:text for text in ThirdPartyNotices}
