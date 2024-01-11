@@ -194,6 +194,19 @@ class MainWindow(QMainWindow):
         return latestData != DataOperation.makeSaveData()
 
     def openFile(self):
+        if self.isDataChanged():
+            messageBox = self.dataChangedAlert()
+            ret = messageBox.exec()
+            if ret == QMessageBox.Save:
+                ret = self.saveFile()
+                if not ret:
+                    return False
+            elif ret == QMessageBox.Discard:
+                pass
+            elif ret == QMessageBox.Cancel:
+                return False
+            else:
+                return False
         filePath = QFileDialog().getOpenFileName(
             self,
             'SoroEditor - 開く',
@@ -207,6 +220,22 @@ class MainWindow(QMainWindow):
                 global currentFilePath, latestData
                 currentFilePath = filePath
                 latestData = data
+                return True
+            else:
+                return False
+        return False
+
+    def dataChangedAlert(self) -> QMessageBox:
+        messageBox = QMessageBox(self)
+        messageBox.setIcon(QMessageBox.Question)
+        messageBox.setWindowTitle('SoroEditor - 終了')
+        messageBox.setText(f'保存されていない変更があります\n閉じる前に保存しますか')
+        messageBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+        messageBox.setButtonText(QMessageBox.Save, '保存(&Y)')
+        messageBox.setButtonText(QMessageBox.Discard, '保存しない(&N)')
+        messageBox.setButtonText(QMessageBox.Cancel, 'キャンセル(&C)')
+        messageBox.setDefaultButton(QMessageBox.Save)
+        return messageBox
 
     def setCurrentPlaceLabel(self):
         widget = self.focusWidget()
@@ -245,15 +274,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.isDataChanged():
-            messageBox = QMessageBox(self)
-            messageBox.setIcon(QMessageBox.Question)
-            messageBox.setWindowTitle('SoroEditor - 終了')
-            messageBox.setText(f'保存されていない変更があります\n閉じる前に保存しますか')
-            messageBox.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
-            messageBox.setButtonText(QMessageBox.Save, '保存(&Y)')
-            messageBox.setButtonText(QMessageBox.Discard, '保存しない(&N)')
-            messageBox.setButtonText(QMessageBox.Cancel, 'キャンセル(&C)')
-            messageBox.setDefaultButton(QMessageBox.Save)
+            messageBox = self.dataChangedAlert()
             ret = messageBox.exec()
             if ret == QMessageBox.Save:
                 ret = self.saveFile()
