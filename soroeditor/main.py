@@ -1,5 +1,6 @@
 import sys
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QApplication, QSplashScreen
 
@@ -13,6 +14,7 @@ def main():
     app = QApplication([])
     pixmap = QPixmap('soroeditor/src/splash.png')
     splash = QSplashScreen(pixmap)
+    splash.setWindowFlags(Qt.SplashScreen|Qt.WindowStaysOnTopHint)
     splash.show()
     splash.finish(MainWindow())
     app.exec()
