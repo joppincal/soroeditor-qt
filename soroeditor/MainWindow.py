@@ -18,7 +18,7 @@ class MainWindow(QMainWindow):
         self.makeLayout()
         global currentFilePath, latestData
         currentFilePath = None
-        latestData = {0:'', 1:'', 2:''}
+        latestData = {i:{'text':'', 'title':''} for i in range(3)}
         if len(sys.argv) >= 2:
             if os.path.isfile(sys.argv[1]):
                 sys.argv[1] = os.path.abspath(sys.argv[1]).replace('\\', '/')
@@ -171,6 +171,9 @@ class MainWindow(QMainWindow):
             ret = DataOperation.saveProjectFile(currentFilePath)
         else:
             ret = self.saveFileAs()
+        if ret:
+            global latestData
+            latestData = DataOperation.makeSaveData()
         return ret
 
     def saveFileAs(self) -> bool:

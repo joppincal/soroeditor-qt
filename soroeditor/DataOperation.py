@@ -11,17 +11,33 @@ def getCurrentText(i:int) -> str|None:
     '''
     return g.textEdits[i].toPlainText() if len(g.textEdits) > i else None
 
+def getCurrentTitle(i:int) -> str|None:
+    '''
+    numにて指定するテキストボックスのタイトルを返す
+    対応するラインエディットが存在しない場合Noneを返す
+    '''
+    return g.lineEdits[i].text() if len(g.lineEdits) > i else None
+
 def getAllCurrentText() -> list[str|None]:
     '''
     すべてのテキストボックスのテキストをリストで返す
     '''
     return [getCurrentText(i) for i in range(len(g.textEdits))]
 
+def getAllCurrentTitle() -> list[str|None]:
+    '''
+    すべてのラインエディットのテキストをリストで返す
+    '''
+    return [getCurrentTitle(i) for i in range(len(g.lineEdits))]
+
 def makeSaveData() -> dict:
     data = {}
     texts = getAllCurrentText()
-    for i, text in enumerate(texts):
-        data[i] = text.rstrip('\r\n')
+    titles = getAllCurrentTitle()
+    for i, (text, title) in enumerate(zip(texts, titles)):
+        data[i] = {}
+        data[i]['text'] = text.rstrip('\r\n')
+        data[i]['title'] = title
     return data
 
 def makeDataToYaml(data:dict) -> str:
@@ -49,5 +65,6 @@ def setTextInTextBoxes(dic:dict):
         if i not in dic or i >= numberOfTextBoxes:
             pass
             return
-        g.textEdits[i].setPlainText(dic[i])
+        g.textEdits[i].setPlainText(dic[i]['text'])
+        g.lineEdits[i].setText(dic[i]['title'])
         g.textEditor.addReturn()
