@@ -52,7 +52,7 @@ class MainWindow(QMainWindow):
             'helpMenu': menuBar.addMenu('ヘルプ(&H)'),
             }
         menu['fileMenu'].addActions(list(g.qAction['file'].values())[:-2])
-        historyMenu = menu['fileMenu'].addMenu(Icon().History, '最近使用したファイル(&R)')
+        menu['historyMenu'] = menu['fileMenu'].addMenu(Icon().History, '最近使用したファイル(&R)')
         menu['fileMenu'].addSeparator()
         menu['fileMenu'].addAction(list(g.qAction['file'].values())[-1])
         menu['editMenu'].addActions(list(g.qAction['edit'].values()))
@@ -300,6 +300,7 @@ class TextEditor(QWidget):
             textEdit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             textEdit.cursorPositionChanged.connect(self.cursorPositionChanged)
             textEdit.focusReceived.connect(self.focusReceived)
+            textEdit.setTabChangesFocus(True)
         for lineEdit in g.lineEdits:
             lineEdit.cursorPositionChanged.connect(self.cursorPositionChanged)
             lineEdit.focusReceived.connect(self.focusReceived)
@@ -317,6 +318,11 @@ class TextEditor(QWidget):
             vlayout.addWidget(lineEdit)
             vlayout.addWidget(textEdit)
             self.hlayout.addLayout(vlayout, stretch)
+
+        for t0, t1 in zip(g.textEdits, (g.textEdits[1:]+g.textEdits[:1])[:-1]):
+            self.parent.setTabOrder(t0, t1)
+        for t0, t1 in zip(g.lineEdits, (g.lineEdits[1:]+g.lineEdits[:1])[:-1]):
+            self.parent.setTabOrder(t0, t1)
 
         self.hlayout.addWidget(mainScrollBar)
 
@@ -393,6 +399,13 @@ class PlainTextEdit(QPlainTextEdit):
     def focusInEvent(self, event: QFocusEvent) -> None:
         super().focusInEvent(event)
         self.focusReceived.emit()
+
+    def focusNextPrevChild(self, next: bool) -> bool:
+        rect = self.cursorRect()
+        for textEdit in g.textEdits:
+            newCursor = textEdit.cursorForPosition(rect.topLeft())
+            textEdit.setTextCursor(newCursor)
+        return super().focusNextPrevChild(next)
 
 
 class LineEdit(QLineEdit):

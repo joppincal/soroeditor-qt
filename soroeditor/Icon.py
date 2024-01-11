@@ -5,7 +5,7 @@ class Icon():
         super().__init__()
         color = 'black' # default
         directory = f'soroeditor/src/icon/'
-        self.Icon = QPixmap(f'{directory}/icon.png')
+        self.Icon = QPixmap(f'{directory}/Icon.svg')
         self.Balance = QPixmap(f'{directory}/{color}/Balance.svg')
         self.Bookmark = QPixmap(f'{directory}/{color}/Bookmark.svg')
         self.Close = QPixmap(f'{directory}/{color}/Close.svg')
