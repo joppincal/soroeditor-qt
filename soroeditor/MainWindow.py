@@ -5,13 +5,15 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QFocusEvent, QKeySequence, QTextCursor
 from PySide6.QtWidgets import QFileDialog, QLabel, QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit, QScrollBar, QWidget
 
-from soroeditor import DataOperation, ThirdPartyNoticesWindow, __global__ as g
+from soroeditor import DataOperation, AboutWindow, ThirdPartyNoticesWindow, __global__ as g
+from soroeditor.Icon import Icon
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.resize(800, 600)
         self.setWindowTitle('SoroEditor')
+        self.setWindowIcon(Icon().Icon)
         self.show()
         self.makeLayout()
         global currentFilePath, latestData
@@ -49,10 +51,10 @@ class MainWindow(QMainWindow):
             'settingMenu': menuBar.addMenu('設定(&O)'),
             'helpMenu': menuBar.addMenu('ヘルプ(&H)'),
             }
-        menu['fileMenu'].addActions(list(g.qAction['file'].values()))
-        menu['fileMenu'].addMenu('最近使用したファイル(&R)')
+        menu['fileMenu'].addActions(list(g.qAction['file'].values())[:-2])
+        historyMenu = menu['fileMenu'].addMenu(Icon().History, '最近使用したファイル(&R)')
         menu['fileMenu'].addSeparator()
-        menu['fileMenu'].addAction(QAction(text='終了(&Q)', parent=self, triggered=print, shortcut=QKeySequence('Alt+F4')))
+        menu['fileMenu'].addAction(list(g.qAction['file'].values())[-1])
         menu['editMenu'].addActions(list(g.qAction['edit'].values()))
         menu['searchMenu'].addActions(list(g.qAction['search'].values()))
         menu['templateMenu'].addActions(list(g.qAction['template'].values()))
@@ -63,21 +65,21 @@ class MainWindow(QMainWindow):
     def makeToolBar(self):
         g.toolBarSettings = {0:{'area':'Top', 'names':['NewFile', 'OpenFile', 'Save', 'SaveAs']}, 1:{'area':'Bottom', 'names':['Setting']}, 2:{'area':'Left', 'names':['Import', 'Export']}, 3:{'area':'Bottom', 'names':['CurrentPlace']}} # temporary
         toolButtonsElements = {
-            'NewFile':{'text':'新規作成', 'icon':None, 'actions':[g.qAction['file']['NewFile']]},
-            'OpenFile':{'text':'ファイルを開く', 'icon':None, 'actions':[g.qAction['file']['OpenFile']]},
-            'Save':{'text':'上書き保存', 'icon':None, 'actions':[g.qAction['file']['Save']]},
-            'SaveAs':{'text':'名前をつけて保存', 'icon':None, 'actions':[g.qAction['file']['SaveAs']]},
-            'Import':{'text':'インポート', 'icon':None, 'actions':[g.qAction['file']['Import']]},
-            'Export':{'text':'エクスポート', 'icon':None, 'actions':[g.qAction['file']['Export']]},
-            'ProjectSetting':{'text':'プロジェクト設定', 'icon':None, 'actions':[g.qAction['file']['ProjectSetting']]},
-            'Reload':{'text':'再読込', 'icon':None, 'actions':[g.qAction['file']['Reload']]},
-            'Setting':{'text':'設定', 'icon':None, 'actions':[g.qAction['setting']['Setting']]},
-            'Search':{'text':'検索', 'icon':None, 'actions':[g.qAction['search']['Search']]},
-            'Replace':{'text':'置換', 'icon':None, 'actions':[g.qAction['search']['Replace']]},
-            'Template':{'text':'定型文', 'icon':None, 'actions':[g.qAction['template']['Template']]},
-            'Bookmark':{'text':'付箋', 'icon':None, 'actions':[g.qAction['bookmark']['Bookmark']]},
-            'Undo':{'text':'取り消し', 'icon':None, 'actions':[g.qAction['edit']['Undo']]},
-            'Repeat':{'text':'取り消しを戻す', 'icon':None, 'actions':[g.qAction['edit']['Repeat']]},
+            'NewFile':{'actions':[g.qAction['file']['NewFile']]},
+            'OpenFile':{'actions':[g.qAction['file']['OpenFile']]},
+            'Save':{'actions':[g.qAction['file']['Save']]},
+            'SaveAs':{'actions':[g.qAction['file']['SaveAs']]},
+            'Import':{'actions':[g.qAction['file']['Import']]},
+            'Export':{'actions':[g.qAction['file']['Export']]},
+            'ProjectSetting':{'actions':[g.qAction['file']['ProjectSetting']]},
+            'Reload':{'actions':[g.qAction['file']['Reload']]},
+            'Setting':{'actions':[g.qAction['setting']['Setting']]},
+            'Search':{'actions':[g.qAction['search']['Search']]},
+            'Replace':{'actions':[g.qAction['search']['Replace']]},
+            'Template':{'actions':[g.qAction['template']['Template']]},
+            'Bookmark':{'actions':[g.qAction['bookmark']['Bookmark']]},
+            'Undo':{'actions':[g.qAction['edit']['Undo']]},
+            'Repeat':{'actions':[g.qAction['edit']['Repeat']]},
 
             'CurrentPlace':{'text':'カーソルの現在位置', 'icon':None, 'actions':None},
             'HotKeys1':{'text':'[Ctrl+O]: 開く  [Ctrl+S]: 上書き保存  [Ctrl+Shift+S]: 名前をつけて保存  [Ctrl+R]: 最後に使ったファイルを開く（起動直後のみ）', 'icon':None, 'actions':None},
@@ -90,7 +92,7 @@ class MainWindow(QMainWindow):
             'CountDown':{'text':'カウントダウン', 'icon':None, 'actions':None},
             'StopWatch':{'text':'ストップウォッチ', 'icon':None, 'actions':None},
         }
-        toolButtonStyle = 'IconOnly' # temporary
+        toolButtonStyle = 'TextBesideIcon' # temporary
         toolButtonStyle = getattr(Qt.ToolButtonStyle, f'ToolButton{toolButtonStyle}')
         g.toolBars = []
 
@@ -117,45 +119,48 @@ class MainWindow(QMainWindow):
             g.toolBars.append(toolBar)
 
     def makeQActions(self):
+        icon = Icon()
         g.qAction = {}
         g.qAction['file'] = {
-            'NewFile': QAction(text='新規作成(&N)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+N')),
-            'OpenFile': QAction(text='ファイルを開く(&O)', parent=self, triggered=self.openFile, shortcut=QKeySequence('Ctrl+O')),
-            'Save': QAction(text='上書き保存(&S)', parent=self, triggered=self.saveFile, shortcut=QKeySequence('Ctrl+S')),
-            'SaveAs': QAction(text='名前をつけて保存(&A)', parent=self, triggered=self.saveFileAs, shortcut=QKeySequence('Ctrl+Shift+S')),
-            'Import': QAction(text='インポート(&I)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+I')),
-            'Export': QAction(text='エクスポート(&E)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+E')),
-            'ProjectSetting': QAction(text='プロジェクト設定(&F)', parent=self, triggered=print),
-            'Reload': QAction(text='再読込(&W)', parent=self, triggered=print, shortcut=QKeySequence('F5')),
+            'NewFile': QAction(icon=icon.NewFile, text='新規作成(&N)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+N')),
+            'OpenFile': QAction(icon=icon.OpenFile, text='ファイルを開く(&O)', parent=self, triggered=self.openFile, shortcut=QKeySequence('Ctrl+O')),
+            'Save': QAction(icon=icon.SaveFile, text='上書き保存(&S)', parent=self, triggered=self.saveFile, shortcut=QKeySequence('Ctrl+S')),
+            'SaveAs': QAction(icon=icon.SaveFileAs, text='名前をつけて保存(&A)', parent=self, triggered=self.saveFileAs, shortcut=QKeySequence('Ctrl+Shift+S')),
+            'Import': QAction(icon=icon.Import, text='インポート(&I)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+I')),
+            'Export': QAction(icon=icon.Export, text='エクスポート(&E)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+E')),
+            'ProjectSetting': QAction(icon=icon.ProjectSetting, text='プロジェクト設定(&F)', parent=self, triggered=print),
+            'Reload': QAction(icon=icon.Refresh, text='再読込(&W)', parent=self, triggered=print, shortcut=QKeySequence('F5')),
+            'History': QAction(icon=icon.History, text='最近使用したファイル(&R)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+R')),
+            'Exit': QAction(icon=icon.Close, text='終了(&Q)', parent=self, triggered=self.close, shortcut=QKeySequence('Alt+F4')),
             }
         g.qAction['edit'] = {
-            'Cut': QAction(text='カット(&T)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+X')),
-            'Copy': QAction(text='コピー(&C)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+C')),
-            'Paste': QAction(text='ペースト(&P)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+V')),
-            'SelectAll': QAction(text='すべて選択(&A)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+A')),
-            'SelectLine': QAction(text='一行選択(&L)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+L')),
-            'Undo': QAction(text='取り消し(&U)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Z')),
-            'Repeat': QAction(text='取り消しを戻す(&R)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+Z')),
+            'Cut': QAction(icon=icon.Cut, text='カット(&T)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+X')),
+            'Copy': QAction(icon=icon.Copy, text='コピー(&C)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+C')),
+            'Paste': QAction(icon=icon.Paste, text='ペースト(&P)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+V')),
+            'SelectAll': QAction(icon=icon.SelectAll, text='すべて選択(&A)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+A')),
+            'SelectLine': QAction(icon=icon.Select, text='一行選択(&L)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+L')),
+            'Undo': QAction(icon=icon.Undo, text='取り消し(&U)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Z')),
+            'Repeat': QAction(icon=icon.Redo, text='取り消しを戻す(&R)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+Z')),
             }
         g.qAction['search'] = {
-            'Search': QAction(text='検索(&S)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+F')),
-            'Replace': QAction(text='置換(&R)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+F')),
+            'Search': QAction(icon=icon.Search, text='検索(&S)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+F')),
+            'Replace': QAction(icon=icon.Replace, text='置換(&R)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+F')),
             }
         g.qAction['template'] = {
-            'Template': QAction(text='定型文(&T)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+T')),
+            'Template': QAction(icon=icon.Template, text='定型文(&T)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+T')),
             }
         g.qAction['bookmark'] = {
-            'Bookmark': QAction(text='付箋(&B)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+B')),
+            'Bookmark': QAction(icon=icon.Bookmark, text='付箋(&B)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+B')),
             }
         g.qAction['setting'] = {
-            'Setting': QAction(text='設定(&O)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+P')),
-            'ProjectSetting': QAction(text='プロジェクト設定(&F)', parent=self, triggered=print),
+            'Setting': QAction(icon=icon.Setting, text='設定(&O)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+P')),
+            'ProjectSetting': QAction(icon=icon.ProjectSetting, text='プロジェクト設定(&F)', parent=self, triggered=print),
             }
         g.qAction['help'] = {
-            'Help': QAction(text='ヘルプ(&H)', parent=self, triggered=print, shortcut=QKeySequence('F1')),
-            'InitialStartupMessage': QAction(text='初回起動メッセージ(&F)', parent=self, triggered=print),
-            'About': QAction(text='SoroEditorについて(&A)', parent=self, triggered=print),
-            'License': QAction(text='ライセンス情報(&L)', parent=self, triggered=self.openSubWindow('ThirdPartyNoticesWindow')),
+            'Help': QAction(icon=icon.Help, text='ヘルプ(&H)', parent=self, triggered=print, shortcut=QKeySequence('F1')),
+            'InitialStartupMessage': QAction(icon=icon.Play, text='初回起動メッセージ(&F)', parent=self, triggered=print),
+            'About': QAction(icon=icon.Info, text='SoroEditorについて(&A)', parent=self, triggered=self.openSubWindow('AboutWindow')),
+            'License': QAction(icon=icon.Balance, text='ライセンス情報(&L)', parent=self, triggered=self.openSubWindow('ThirdPartyNoticesWindow')),
             }
 
     def makeTextEditor(self):
@@ -261,14 +266,19 @@ class MainWindow(QMainWindow):
         return super().closeEvent(event)
 
     def openSubWindow(self, type_: QWidget):
-        self.subWindows = {'ThirdPartyNoticesWindow': None}
+        self.subWindows = {
+            'ThirdPartyNoticesWindow': None,
+            'AboutWindow': None,
+            }
         if type_ == 'ThirdPartyNoticesWindow':
             subWindow = ThirdPartyNoticesWindow.ThirdPartyNoticesWindow
+        elif type_ == 'AboutWindow':
+            subWindow = AboutWindow.AboutWindow
         else:
             return
 
         def inner():
-            self.subWindows[type_] = subWindow()
+            self.subWindows[type_] = subWindow(self)
             self.subWindows[type_].show()
 
         return inner

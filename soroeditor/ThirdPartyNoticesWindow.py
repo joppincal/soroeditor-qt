@@ -7,10 +7,11 @@ from soroeditor import FileOperation
 
 
 class ThirdPartyNoticesWindow(QWidget):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent) -> None:
+        super().__init__(parent)
         self.setWindowTitle('SoroEditor - ライセンス情報')
         self.resize(700, 500)
+        self.setWindowFlags(Qt.Dialog)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.getThirdPartyNotices()
         self.makeLayout()
@@ -56,3 +57,8 @@ class ThirdPartyNoticesWindow(QWidget):
         ThirdPartyNotices = FileOperation.openFile('./ThirdPartyNotices.txt')
         ThirdPartyNotices = [text.lstrip('\n').rstrip('\n') for text in ThirdPartyNotices.split('\n---------------------------------------------------------\n')[0:] if text]
         ThirdPartyNotices = {text.split('\n',1)[0]:text for text in ThirdPartyNotices}
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Escape, Qt.Key_Return):
+            self.close()
+        return super().keyPressEvent(event)
