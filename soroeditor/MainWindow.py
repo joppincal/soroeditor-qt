@@ -3,8 +3,8 @@ import os
 import sys
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction, QCloseEvent, QFocusEvent, QKeySequence, QTextCursor
-from PySide6.QtWidgets import QFileDialog, QLabel, QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit, QScrollBar, QWidget
+from PySide6.QtGui import QAction, QCloseEvent, QFocusEvent, QKeySequence, QPixmap, QTextCursor
+from PySide6.QtWidgets import QFileDialog, QLabel, QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit, QScrollBar, QSplashScreen, QWidget
 
 from soroeditor import DataOperation, AboutWindow, ThirdPartyNoticesWindow, SettingOperation, SettingWindow, __global__ as g
 from soroeditor.Icon import Icon
@@ -12,10 +12,16 @@ from soroeditor.Icon import Icon
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        pixmap = QPixmap('soroeditor/src/splash.png')
+        splash = QSplashScreen(pixmap)
+        splash.setWindowFlags(Qt.SplashScreen|Qt.WindowStaysOnTopHint)
+        splash.show()
+
+        self.settings = self.openSettingFile()
         self.resize(*self.settings['Size'])
         self.setWindowTitle('SoroEditor')
         self.setWindowIcon(Icon().Icon)
-        self.show()
 
         self.makeLayout()
 
@@ -36,6 +42,9 @@ class MainWindow(QMainWindow):
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.loop)
         self.timer.start()
+
+        self.show()
+        splash.hide()
 
     def makeLayout(self):
         self.makeQActions()
