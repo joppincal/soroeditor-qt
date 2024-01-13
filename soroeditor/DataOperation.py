@@ -56,7 +56,7 @@ def openProjectFile(filePath) -> (dict | None):
         try:
             dic = yaml.safe_load(yml)
         except (KeyError, UnicodeDecodeError, yaml.YAMLError, yaml.scanner.ScannerError, yaml.constructor.ConstructorError) as e:
-            g.logger.error(f'Failed to load yaml data.: {e}')
+            g.logger.error(f'Failed to load Yaml data.: {e}')
         return dic
 
 def setTextInTextBoxes(dic:dict):

@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 from PySide6 import QtCore, QtWidgets
@@ -5,20 +6,23 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QFocusEvent, QKeySequence, QTextCursor
 from PySide6.QtWidgets import QFileDialog, QLabel, QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit, QScrollBar, QWidget
 
-from soroeditor import DataOperation, AboutWindow, ThirdPartyNoticesWindow, __global__ as g
+from soroeditor import DataOperation, AboutWindow, ThirdPartyNoticesWindow, SettingOperation, SettingWindow, __global__ as g
 from soroeditor.Icon import Icon
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.resize(800, 600)
+        self.resize(*self.settings['Size'])
         self.setWindowTitle('SoroEditor')
         self.setWindowIcon(Icon().Icon)
         self.show()
+
         self.makeLayout()
+
         global currentFilePath, latestData
         currentFilePath = None
         latestData = {i:{'text':'', 'title':''} for i in range(3)}
+
         if len(sys.argv) >= 2:
             if os.path.isfile(sys.argv[1]):
                 sys.argv[1] = os.path.abspath(sys.argv[1]).replace('\\', '/')
@@ -27,6 +31,7 @@ class MainWindow(QMainWindow):
                     DataOperation.setTextInTextBoxes(data)
                     currentFilePath = sys.argv[1]
                     latestData = data
+
         self.timer = QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.loop)
@@ -51,10 +56,25 @@ class MainWindow(QMainWindow):
             'settingMenu': menuBar.addMenu('設定(&O)'),
             'helpMenu': menuBar.addMenu('ヘルプ(&H)'),
             }
+
         menu['fileMenu'].addActions(list(g.qAction['file'].values())[:-2])
         menu['historyMenu'] = menu['fileMenu'].addMenu(Icon().History, '最近使用したファイル(&R)')
+        menu['historyMenu'].addActions(
+            [
+                QAction(
+                    text=f'&{i+1 if i < 9 else 0}: {filePath}',
+                    parent=self,
+                    triggered=self.openProjectFileFromHistory(filePath),
+                    )
+                for i, filePath
+                in enumerate(
+                    list(dict.fromkeys(self.settings['FileHistory']))[:10]
+                    )
+                ]
+            )
         menu['fileMenu'].addSeparator()
         menu['fileMenu'].addAction(list(g.qAction['file'].values())[-1])
+
         menu['editMenu'].addActions(list(g.qAction['edit'].values()))
         menu['searchMenu'].addActions(list(g.qAction['search'].values()))
         menu['templateMenu'].addActions(list(g.qAction['template'].values()))
@@ -63,12 +83,12 @@ class MainWindow(QMainWindow):
         menu['helpMenu'].addActions(list(g.qAction['help'].values()))
 
     def makeToolBar(self):
-        g.toolBarSettings = {0:{'area':'Top', 'names':['NewFile', 'OpenFile', 'Save', 'SaveAs']}, 1:{'area':'Bottom', 'names':['Setting']}, 2:{'area':'Left', 'names':['Import', 'Export']}, 3:{'area':'Bottom', 'names':['CurrentPlace']}} # temporary
+        toolBarSettings = self.settings['ToolBar']
         toolButtonsElements = {
             'NewFile':{'actions':[g.qAction['file']['NewFile']]},
             'OpenFile':{'actions':[g.qAction['file']['OpenFile']]},
-            'Save':{'actions':[g.qAction['file']['Save']]},
-            'SaveAs':{'actions':[g.qAction['file']['SaveAs']]},
+            'SaveFile':{'actions':[g.qAction['file']['SaveFile']]},
+            'SaveFileAs':{'actions':[g.qAction['file']['SaveFileAs']]},
             'Import':{'actions':[g.qAction['file']['Import']]},
             'Export':{'actions':[g.qAction['file']['Export']]},
             'ProjectSetting':{'actions':[g.qAction['file']['ProjectSetting']]},
@@ -85,8 +105,8 @@ class MainWindow(QMainWindow):
             'HotKeys1':{'text':'[Ctrl+O]: 開く  [Ctrl+S]: 上書き保存  [Ctrl+Shift+S]: 名前をつけて保存  [Ctrl+R]: 最後に使ったファイルを開く（起動直後のみ）', 'icon':None, 'actions':None},
             'HotKeys2':{'text':'[Enter]: 1行追加(下)  [Ctrl+Enter]: 1行追加(上)  [Shift+Enter]: 通常改行  [Ctrl+Z]: 取り消し  [Ctrl+Shift+Z]: 取り消しを戻す  [Ctrl+F]: 検索  [Ctrl+Shift+F]: 置換', 'icon':None, 'actions':None},
             'HotKeys3':{'text':'[Ctrl+Q][Alt+Q][Alt+<]: 左に移る  [Ctrl+W][Alt+W][Alt+>]: 右に移る', 'icon':None, 'actions':None},
-            'infomation':{'text':'各機能情報', 'icon':None, 'actions':None},
-            'kaomoji':{'text':'顔文字', 'icon':None, 'actions':None},
+            'Info':{'text':'各機能情報', 'icon':None, 'actions':None},
+            'Kaomoji':{'text':'顔文字', 'icon':None, 'actions':None},
             'StatusBarMessage':{'text':'ステータスバー初期メッセージ', 'icon':None, 'actions':None},
             'Clock':{'text':'時計', 'icon':None, 'actions':None},
             'CountDown':{'text':'カウントダウン', 'icon':None, 'actions':None},
@@ -96,14 +116,14 @@ class MainWindow(QMainWindow):
         toolButtonStyle = getattr(Qt.ToolButtonStyle, f'ToolButton{toolButtonStyle}')
         g.toolBars = []
 
-        for i, toolBarSetting in g.toolBarSettings.items():
+        for i, toolBarSetting in toolBarSettings.items():
             area = getattr(Qt.ToolBarArea, f'{toolBarSetting["area"]}ToolBarArea')
             self.addToolBarBreak(area)
             toolBar = self.addToolBar(f'ツールバー{i+1}')
             toolBar.setToolButtonStyle(toolButtonStyle)
             self.addToolBar(area, toolBar)
 
-            for name in toolBarSetting['names']:
+            for name in toolBarSetting['contents']:
                 elements = toolButtonsElements[name]
                 if elements['actions']:
                     toolBar.addActions(elements['actions'])
@@ -123,9 +143,9 @@ class MainWindow(QMainWindow):
         g.qAction = {}
         g.qAction['file'] = {
             'NewFile': QAction(icon=icon.NewFile, text='新規作成(&N)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+N')),
-            'OpenFile': QAction(icon=icon.OpenFile, text='ファイルを開く(&O)', parent=self, triggered=self.openFile, shortcut=QKeySequence('Ctrl+O')),
-            'Save': QAction(icon=icon.SaveFile, text='上書き保存(&S)', parent=self, triggered=self.saveFile, shortcut=QKeySequence('Ctrl+S')),
-            'SaveAs': QAction(icon=icon.SaveFileAs, text='名前をつけて保存(&A)', parent=self, triggered=self.saveFileAs, shortcut=QKeySequence('Ctrl+Shift+S')),
+            'OpenFile': QAction(icon=icon.OpenFile, text='ファイルを開く(&O)', parent=self, triggered=self.openProjectFile, shortcut=QKeySequence('Ctrl+O')),
+            'SaveFile': QAction(icon=icon.SaveFile, text='上書き保存(&S)', parent=self, triggered=self.saveFile, shortcut=QKeySequence('Ctrl+S')),
+            'SaveFileAs': QAction(icon=icon.SaveFileAs, text='名前をつけて保存(&A)', parent=self, triggered=self.saveFileAs, shortcut=QKeySequence('Ctrl+Shift+S')),
             'Import': QAction(icon=icon.Import, text='インポート(&I)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+I')),
             'Export': QAction(icon=icon.Export, text='エクスポート(&E)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+E')),
             'ProjectSetting': QAction(icon=icon.ProjectSetting, text='プロジェクト設定(&F)', parent=self, triggered=print),
@@ -153,7 +173,7 @@ class MainWindow(QMainWindow):
             'Bookmark': QAction(icon=icon.Bookmark, text='付箋(&B)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+B')),
             }
         g.qAction['setting'] = {
-            'Setting': QAction(icon=icon.Setting, text='設定(&O)', parent=self, triggered=print, shortcut=QKeySequence('Ctrl+Shift+P')),
+            'Setting': QAction(icon=icon.Setting, text='設定(&O)', parent=self, triggered=self.openSubWindow('SettingWindow'), shortcut=QKeySequence('Ctrl+Shift+P')),
             'ProjectSetting': QAction(icon=icon.ProjectSetting, text='プロジェクト設定(&F)', parent=self, triggered=print),
             }
         g.qAction['help'] = {
@@ -196,7 +216,7 @@ class MainWindow(QMainWindow):
     def isDataChanged(self) -> bool:
         return latestData != DataOperation.makeSaveData()
 
-    def openFile(self):
+    def openProjectFile(self, filePath:str=''):
         if self.isDataChanged():
             messageBox = self.dataChangedAlert()
             ret = messageBox.exec()
@@ -210,12 +230,13 @@ class MainWindow(QMainWindow):
                 return False
             else:
                 return False
-        filePath = QFileDialog().getOpenFileName(
-            self,
-            'SoroEditor - 開く',
-            os.path.curdir,
-            'SoroEditor Project File(*.sepf *.sep);;その他(*.*)'
-            )[0]
+        if not filePath:
+            filePath = QFileDialog().getOpenFileName(
+                self,
+                'SoroEditor - 開く',
+                os.path.curdir,
+                'SoroEditor Project File(*.sepf *.sep);;その他(*.*)'
+                )[0]
         if filePath:
             data = DataOperation.openProjectFile(filePath)
             if data:
@@ -227,6 +248,11 @@ class MainWindow(QMainWindow):
             else:
                 return False
         return False
+
+    def openProjectFileFromHistory(self, filePath:str=''):
+        def inner():
+            return self.openProjectFile(filePath)
+        return inner
 
     def dataChangedAlert(self) -> QMessageBox:
         messageBox = QMessageBox(self)
@@ -260,7 +286,7 @@ class MainWindow(QMainWindow):
             for widget in [widget for toolBar in g.toolBars for widget in toolBar.children()]:
                 if widget.objectName() == 'CurrentPlace':
                     text = f'{title if title else f"{index+1}列"} - {type_}: '\
-                        f'{"" if block is None else f"{block+1}段落"}{positionInBlock+1}文字'
+                        f'{"" if block is None else f"{block+1}段落"}{positionInBlock+1}文字    '
                     widget.setText(text)
         else:
             return
@@ -274,6 +300,13 @@ class MainWindow(QMainWindow):
         if self.isDataChanged():
             title += '(更新)'
         self.setWindowTitle(title)
+
+    def openSettingFile(self):
+        settings: dict[str] = SettingOperation.openSettingFile()
+        if not settings:
+            settings = copy.deepcopy(SettingOperation.DEFAULTSETTINGDATA)
+            SettingOperation.makeNewSettingFile()
+        return settings
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.isDataChanged():
@@ -293,11 +326,14 @@ class MainWindow(QMainWindow):
         self.subWindows = {
             'ThirdPartyNoticesWindow': None,
             'AboutWindow': None,
+            'SettingWindow':None,
             }
         if type_ == 'ThirdPartyNoticesWindow':
             subWindow = ThirdPartyNoticesWindow.ThirdPartyNoticesWindow
         elif type_ == 'AboutWindow':
             subWindow = AboutWindow.AboutWindow
+        elif type_ == 'SettingWindow':
+            subWindow = SettingWindow.SettingWindow
         else:
             return
 
