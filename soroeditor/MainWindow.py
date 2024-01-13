@@ -74,12 +74,22 @@ class MainWindow(QMainWindow):
                     text=f'&{i+1 if i < 9 else 0}: {filePath}',
                     parent=self,
                     triggered=self.openProjectFileFromHistory(filePath),
+                    shortcut=QKeySequence('Ctrl+R') if i == 0 else False,
                     )
                 for i, filePath
                 in enumerate(
                     list(dict.fromkeys(self.settings['FileHistory']))[:10]
                     )
                 ]
+            )
+        menu['historyMenu'].addSeparator()
+        menu['historyMenu'].addAction(
+            QAction(
+                text='履歴ウィンドウ(&R)',
+                parent=self,
+                triggered=print,
+                shortcut=QKeySequence('Shift+Ctrl+R')
+                )
             )
         menu['fileMenu'].addSeparator()
         menu['fileMenu'].addAction(list(g.qAction['file'].values())[-1])
