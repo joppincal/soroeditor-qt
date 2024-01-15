@@ -1,6 +1,11 @@
-from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import (QDialogButtonBox, QHBoxLayout, QVBoxLayout,
-                               QWidget)
+from PySide6 import QtCore
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QDialogButtonBox,
+    QHBoxLayout,
+    QVBoxLayout,
+    QWidget,
+)
 
 from soroeditor import SettingOperation
 
@@ -9,7 +14,7 @@ class SettingWindow(QWidget):
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
         self.resize(800, 600)
-        self.setWindowFlags(Qt.Dialog)
+        self.setWindowFlags(Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.setWindowTitle("SoroEditor - 設定")
         self.makeLayout()
@@ -38,7 +43,7 @@ class SettingWindow(QWidget):
         for button in bottomBar.buttons():
             button.clicked.connect(self.buttonClicked)
 
-    @Slot()
+    @QtCore.Slot()
     def buttonClicked(self):
         button = self.sender()
         if button == bottomBar.button(bottomBar.StandardButton.Save):

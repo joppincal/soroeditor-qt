@@ -2,15 +2,16 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-from soroeditor import __global__ as g
-from soroeditor.MainWindow import MainWindow
+from soroeditor import __global__ as __g
 from soroeditor.logSetting import logSetting
+from soroeditor.MainWindow import MainWindow
+
 
 def main():
     logSetting()
-    g.logger.info('===Start Application===')
+    __g.logger.info("===Start Application===")
     app = QApplication([])
     MainWindow()
     app.exec()
-    g.logger.info('===Close Application===')
+    __g.logger.info("===Close Application===")
     sys.exit()

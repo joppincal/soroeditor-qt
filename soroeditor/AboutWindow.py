@@ -1,30 +1,36 @@
 from PySide6 import QtWidgets
-from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel, QWidget
 
 from soroeditor.Icon import Icon
 
+
 class AboutWindow(QWidget):
     def __init__(self, parent) -> None:
         super().__init__(parent)
-        self.setWindowTitle('SoroEditorについて')
+        self.setWindowTitle("SoroEditorについて")
         self.setFixedSize(300, 500)
-        self.setWindowFlags(Qt.Dialog)
+        self.setWindowFlags(Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
-        self.version = '0.0.0' # temporary
+        self.version = "0.0.0"  # temporary
         self.makeLayout()
 
     def makeLayout(self):
-        icon = QLabel('SoroEditorアイコン')
+        icon = QLabel("SoroEditorアイコン")
         icon.setPixmap(Icon().Icon.scaled(256, 256))
+        QFont
         self.font()
         label = QLabel()
         label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         label.setFont(QFont(label.font().family(), 11))
         label.setTextInteractionFlags(Qt.TextBrowserInteraction)
         label.setOpenExternalLinks(True)
-        label.setText(f'<p>SoroEditor そろエディタ</p><p>Author: Joppincal</p><p>Version: {self.version}</p><a href="https://github.com/joppincal/soroeditor-qt">Github</a>')
+        label.setText(
+            f"<p>SoroEditor そろエディタ</p>"
+            f"<p>Author: Joppincal</p><p>Version: {self.version}</p>"
+            f'<a href="https://github.com/joppincal/soroeditor-qt">Github</a>'
+        )
 
         vlayout = QtWidgets.QVBoxLayout(self)
         vlayout.addWidget(icon, 2, Qt.AlignmentFlag.AlignHCenter)
