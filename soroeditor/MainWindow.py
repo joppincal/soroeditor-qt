@@ -420,7 +420,6 @@ class MainWindow(QMainWindow):
         else:
             ret = self.saveFileAs()
         if ret:
-            self.latestData
             self.latestData = DataOperation.makeSaveData()
         return ret
 
@@ -438,6 +437,7 @@ class MainWindow(QMainWindow):
         if ret:
             self.currentFilePath
             self.currentFilePath = filePath
+            self.latestData = DataOperation.makeSaveData()
             self.setWindowTitle(f"SoroEditor - {filePath}")
         return ret
 
