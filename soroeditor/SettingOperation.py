@@ -1,3 +1,5 @@
+import copy
+
 import yaml as __y
 
 from soroeditor import DataOperation as __d
@@ -6,26 +8,32 @@ from soroeditor import __global__ as __g
 
 __PATH = "./setting.yaml"
 
-DEFAULTSETTINGDATA = {
+__DEFAULTSETTINGDATA = {
     "FileHistory": [],
+    "Font": "MS UI Gothic",
+    "FontSize": 11,
     "Size": (800, 600),
     "ToolBar": {
-        0: {
-            "area": "Top",
-            "contents": [
+        1: {
+            "Area": "Top",
+            "Contents": [
                 "NewFile",
                 "OpenFile",
                 "SaveFile",
                 "SaveFileAs",
                 "Setting",
             ],
+            "Enable": True,
+            "Title": "ツールバー1",
         },
-        1: {
-            "area": "Bottom",
-            "contents": [
+        2: {
+            "Area": "Bottom",
+            "Contents": [
                 "CurrentPlace",
                 "Info",
             ],
+            "Enable": True,
+            "Title": "ツールバー2",
         },
     },
 }
@@ -53,12 +61,18 @@ def writeSettingFile(data: dict) -> bool:
 
 
 def makeNewSettingFile() -> bool:
-    return writeSettingFile(DEFAULTSETTINGDATA)
+    return writeSettingFile(__DEFAULTSETTINGDATA)
 
 
 def ValidateContentsOfSettingFile(dic: dict) -> bool:
-    return set(dic.keys()) == {
-        "RecentryFile",
+    return set(dic.keys()) <= {
+        "FileHistory",
+        "Font",
+        "FontSize",
         "Size",
         "ToolBar",
     }
+
+
+def defaultSettingData() -> dict:
+    return copy.deepcopy(__DEFAULTSETTINGDATA)

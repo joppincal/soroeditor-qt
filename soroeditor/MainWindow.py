@@ -1,4 +1,3 @@
-import copy
 import os
 import sys
 
@@ -8,6 +7,7 @@ from PySide6.QtGui import (
     QAction,
     QCloseEvent,
     QFocusEvent,
+    QFont,
     QKeySequence,
     QPixmap,
     QTextCursor,
@@ -42,7 +42,18 @@ class MainWindow(QMainWindow):
         splash.show()
 
         self.settings = self.openSettingFile()
-        self.resize(*self.settings["Size"])
+        size = self.settings["Size"]
+        if type(size) is not list:
+            if size == "FullScreen":
+                self.showFullScreen()
+        elif not all([type(i) is int for i in size]):
+            self.resize(*SettingOperation.defaultSettingData()["Size"])
+        else:
+            self.resize(*size)
+
+        self.editorFont = QFont(
+            self.settings["Font"], self.settings["FontSize"]
+        )
         self.setWindowTitle("SoroEditor")
         self.setWindowIcon(Icon().Icon)
 
@@ -137,13 +148,14 @@ class MainWindow(QMainWindow):
                 "actions": [_g.qAction["file"]["ProjectSetting"]]
             },
             "Reload": {"actions": [_g.qAction["file"]["Reload"]]},
+            "Exit": {"actions": [_g.qAction["file"]["Exit"]]},
             "Setting": {"actions": [_g.qAction["setting"]["Setting"]]},
             "Search": {"actions": [_g.qAction["search"]["Search"]]},
             "Replace": {"actions": [_g.qAction["search"]["Replace"]]},
             "Template": {"actions": [_g.qAction["template"]["Template"]]},
             "Bookmark": {"actions": [_g.qAction["bookmark"]["Bookmark"]]},
             "Undo": {"actions": [_g.qAction["edit"]["Undo"]]},
-            "Repeat": {"actions": [_g.qAction["edit"]["Repeat"]]},
+            "Redo": {"actions": [_g.qAction["edit"]["Redo"]]},
             "CurrentPlace": {
                 "text": "カーソルの現在位置",
                 "icon": None,
@@ -185,25 +197,38 @@ class MainWindow(QMainWindow):
         )
         _g.toolBars = []
 
-        for i, toolBarSetting in toolBarSettings.items():
-            area = getattr(
-                Qt.ToolBarArea, f'{toolBarSetting["area"]}ToolBarArea'
-            )
+        for toolBarSetting in toolBarSettings.values():
+            enable = toolBarSetting["Enable"]
+            if type(enable) is not bool:
+                enable = False
+
+            area = toolBarSetting["Area"]
+            if area not in ("Top", "Bottom", "Left", "Right"):
+                area = "Top"
+            area = getattr(Qt.ToolBarArea, f"{area}ToolBarArea")
+
+            title = str(toolBarSetting["Title"])
+
+            contents = toolBarSetting["Contents"]
+            if type(contents) is not list:
+                contents = []
+
             self.addToolBarBreak(area)
-            toolBar = self.addToolBar(f"ツールバー{i+1}")
+            toolBar = self.addToolBar(f"{title}")
             toolBar.setToolButtonStyle(toolButtonStyle)
+            toolBar.setVisible(enable)
             self.addToolBar(area, toolBar)
 
-            for name in toolBarSetting["contents"]:
-                elements = toolButtonsElements[name]
-                if elements["actions"]:
+            for name in contents:
+                elements = toolButtonsElements.get(name, {})
+                if elements.get("actions", None):
                     toolBar.addActions(elements["actions"])
                 else:
                     label = QLabel()
-                    if elements["text"]:
+                    if elements.get("text", None):
                         label.setText(elements["text"])
                         label.setObjectName(name)
-                    if elements["icon"]:
+                    if elements.get("icon", None):
                         label.setPixmap(elements["icon"])
                     toolBar.addWidget(label)
 
@@ -326,7 +351,7 @@ class MainWindow(QMainWindow):
                 triggered=print,
                 shortcut=QKeySequence("Ctrl+Z"),
             ),
-            "Repeat": QAction(
+            "Redo": QAction(
                 icon=icon.Redo,
                 text="取り消しを戻す(&R)",
                 parent=self,
@@ -413,6 +438,7 @@ class MainWindow(QMainWindow):
 
     def makeTextEditor(self):
         _g.textEditor = TextEditor(self)
+        _g.textEditor.setFont(self.editorFont)
 
     def saveFile(self) -> bool:
         if self.currentFilePath:
@@ -547,7 +573,7 @@ class MainWindow(QMainWindow):
     def openSettingFile(self):
         settings = SettingOperation.openSettingFile()
         if not settings:
-            settings = copy.deepcopy(SettingOperation.DEFAULTSETTINGDATA)
+            settings = SettingOperation.defaultSettingData()
             SettingOperation.makeNewSettingFile()
         return settings
 
