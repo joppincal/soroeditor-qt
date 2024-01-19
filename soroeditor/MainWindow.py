@@ -42,14 +42,6 @@ class MainWindow(QMainWindow):
         splash.show()
 
         self.settings = self.openSettingFile()
-        size = self.settings["Size"]
-        if type(size) is not list:
-            if size == "FullScreen":
-                self.showFullScreen()
-        elif not all([type(i) is int for i in size]):
-            self.resize(*SettingOperation.defaultSettingData()["Size"])
-        else:
-            self.resize(*size)
 
         self.editorFont = QFont(
             self.settings["Font"], self.settings["FontSize"]
@@ -76,6 +68,17 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.loop)
         self.timer.start()
 
+        size = self.settings["Size"]
+        if (
+            type(size) is list
+            and len(size) == 2
+            and all([type(i) is int for i in size])
+        ):
+            self.resize(*size)
+        elif size == "FullScreen":
+            self.showMaximized()
+        else:
+            self.resize(*SettingOperation.defaultSettingData()["Size"])
         self.show()
         splash.hide()
 
