@@ -41,11 +41,11 @@ class MainWindow(QMainWindow):
         splash.setWindowFlags(Qt.SplashScreen | Qt.WindowStaysOnTopHint)
         splash.show()
 
-        self.settings = self.openSettingFile()
-
-        self.editorFont = QFont(
-            self.settings["Font"], self.settings["FontSize"]
+        self.settings = SettingOperation.settingVerification(
+            self.openSettingFile()
         )
+        SettingOperation.writeSettingFile(self.settings)
+
         self.setWindowTitle("SoroEditor")
         self.setWindowIcon(Icon().Icon)
 
@@ -68,17 +68,7 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.loop)
         self.timer.start()
 
-        size = self.settings["Size"]
-        if (
-            type(size) is list
-            and len(size) == 2
-            and all([type(i) is int for i in size])
-        ):
-            self.resize(*size)
-        elif size == "FullScreen":
-            self.showMaximized()
-        else:
-            self.resize(*SettingOperation.defaultSettingData()["Size"])
+        self.reflectionSettings("Size")
         self.show()
         splash.hide()
 
@@ -151,6 +141,7 @@ class MainWindow(QMainWindow):
                 "actions": [_g.qAction["file"]["ProjectSetting"]]
             },
             "Reload": {"actions": [_g.qAction["file"]["Reload"]]},
+            "FileHistory": {"actions": [_g.qAction["file"]["History"]]},
             "Exit": {"actions": [_g.qAction["file"]["Exit"]]},
             "Setting": {"actions": [_g.qAction["setting"]["Setting"]]},
             "Search": {"actions": [_g.qAction["search"]["Search"]]},
@@ -441,7 +432,7 @@ class MainWindow(QMainWindow):
 
     def makeTextEditor(self):
         _g.textEditor = TextEditor(self)
-        _g.textEditor.setFont(self.editorFont)
+        self.reflectionSettings("Font")
 
     def saveFile(self) -> bool:
         if self.currentFilePath:
@@ -579,6 +570,39 @@ class MainWindow(QMainWindow):
             settings = SettingOperation.defaultSettingData()
             SettingOperation.makeNewSettingFile()
         return settings
+
+    def reflectionSettings(self, item):
+        if item in ("Size", "All"):
+            size = self.settings["Size"]
+            if type(size) is list:
+                self.resize(*size)
+            elif size == "FullScreen":
+                self.showMaximized()
+            else:
+                self.resize(*SettingOperation.defaultSettingData()["Size"])
+
+            if size != "FullScreen":
+                self.move(0, 0)
+                screen = self.screen()
+                screen_geometry = screen.geometry()
+                x = (screen_geometry.width() - self.width()) // 2
+                y = (screen_geometry.height() - self.height()) // 2
+                self.move(x, y)
+
+        if item in ("FontFamily", "Font", "All"):
+            fontFamily = self.settings["Font"]
+            _g.textEditor.setFont(QFont(fontFamily))
+
+        if item in ("FontSize", "Font", "All"):
+            fontSize = self.settings["FontSize"]
+            _g.textEditor.setFont(
+                QFont(_g.textEditor.font().family(), fontSize)
+            )
+
+        if item in ("ToolBar", "All"):
+            for toolBar in _g.toolBars:
+                self.removeToolBar(toolBar)
+            self.makeToolBar()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.isDataChanged():

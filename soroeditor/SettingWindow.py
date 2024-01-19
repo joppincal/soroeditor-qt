@@ -21,13 +21,13 @@ from soroeditor import SettingOperation
 class SettingWindow(QWidget):
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
-        self.setting = SettingOperation.openSettingFile()
+        self.settings = self.parent().settings  # type: ignore
         self.resize(600, 500)
         self.setWindowFlags(Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.setWindowTitle("SoroEditor - 設定")
         self.makeLayout()
-        self.setSettings(self.setting)
+        self.setSettings(self.settings)
 
     def makeLayout(self):
         # 全体の形
@@ -46,7 +46,9 @@ class SettingWindow(QWidget):
         fontComboBox.setEditable(False)
         # フォントサイズ
         fontSizeComboBox = QComboBox()
-        fontSizeComboBox.addItems([str(i) for i in range(1, 31)])
+        fontSizeComboBox.addItems(
+            [str(i) for i in list(range(1, 101)).__reversed__()]
+        )
         fontSizeComboBox.setEditable(True)
         # ウィンドウサイズ
         windowSizeComboBox = QComboBox()
@@ -100,6 +102,7 @@ class SettingWindow(QWidget):
                 QMessageBox.information(
                     self, "SoroEditor - Infomation", "設定を保存しました"
                 )
+                self.close()
             else:
                 QMessageBox.warning(self, "SoroEditor - Error", "設定の保存に失敗しました")
         if button == self.bottomBar.button(
@@ -132,7 +135,11 @@ class SettingWindow(QWidget):
             size = default["Size"]
         data["Size"] = size
 
-        data["ToolBar"] = self.setting["ToolBar"]
+        data["ToolBar"] = self.settings["ToolBar"]
+
+        self.settings = data
+        self.parent().settings = self.settings
+        self.parent().reflectionSettings("All")
 
         return SettingOperation.writeSettingFile(data)
 
@@ -154,6 +161,7 @@ class SettingWindow(QWidget):
         if type(fontSize) is not int:
             fontSize = default["FontSize"]
         self.widgetsForVBox1[3].setCurrentText(str(fontSize))
+        self.widgetsForVBox1[3].setCurrentIndex(100 - fontSize)
 
         windowSize = settings.get("Size", default["Size"])
         if type(windowSize) is list:
@@ -275,6 +283,7 @@ class ToolBarSettingWindow(QWidget):
                 QMessageBox.information(
                     self, "SoroEditor - Infomation", "設定を保存しました"
                 )
+                self.close()
             else:
                 QMessageBox.warning(self, "SoroEditor - Error", "設定の保存に失敗しました")
         if button == self.bottomBar.button(
@@ -315,9 +324,13 @@ class ToolBarSettingWindow(QWidget):
                 "Contents": contents,
             }
 
-        self.parent().setting["ToolBar"] = data  # type: ignore
+        self.parent().settings["ToolBar"] = data  # type: ignore
+        self.parent().parent().settings["ToolBar"] = data  # type: ignore
+
+        self.parent().parent().reflectionSettings("All")  # type: ignore
+
         return SettingOperation.writeSettingFile(
-            self.parent().setting  # type: ignore
+            self.parent().settings  # type: ignore
         )
 
     def setSettings(self):

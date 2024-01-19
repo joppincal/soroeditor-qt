@@ -1,6 +1,7 @@
 import copy
 
 import yaml as __y
+from PySide6.QtGui import QFontDatabase
 
 from soroeditor import DataOperation as __d
 from soroeditor import FileOperation as __f
@@ -64,14 +65,47 @@ def makeNewSettingFile() -> bool:
     return writeSettingFile(__DEFAULTSETTINGDATA)
 
 
-def ValidateContentsOfSettingFile(dic: dict) -> bool:
-    return set(dic.keys()) <= {
-        "FileHistory",
-        "Font",
-        "FontSize",
-        "Size",
-        "ToolBar",
-    }
+def settingVerification(dic: dict) -> dict:
+    size = dic.get("Size", None)
+    font = dic.get("Font", None)
+    fontSize = dic.get("FontSize", None)
+    fileHistory = dic.get("FileHistory", None)
+    toolBar = dic.get("ToolBar", None)
+
+    default = defaultSettingData()
+
+    if (
+        type(size) is list
+        and len(size) == 2
+        and all([type(i) is int for i in size])
+    ):
+        pass
+    elif size == "FullScreen":
+        pass
+    else:
+        dic["Size"] = default["Size"]
+
+    if font in QFontDatabase.families(QFontDatabase.WritingSystem.Any):
+        pass
+    else:
+        dic["Font"] = default["Font"]
+
+    if type(fontSize) is int and fontSize > 0:
+        pass
+    else:
+        dic["FontSize"] = default["FontSize"]
+
+    if type(fileHistory) is list:
+        pass
+    else:
+        dic["FileHistory"] = default["FileHistory"]
+
+    if type(toolBar) is dict:
+        pass
+    else:
+        dic["ToolBar"] = default["ToolBar"]
+
+    return dic
 
 
 def defaultSettingData() -> dict:
