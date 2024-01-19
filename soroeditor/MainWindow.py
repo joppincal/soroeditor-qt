@@ -94,30 +94,9 @@ class MainWindow(QMainWindow):
 
         menu["fileMenu"].addActions(list(_g.qAction["file"].values())[:-2])
         menu["historyMenu"] = menu["fileMenu"].addMenu(
-            Icon().History, "最近使用したファイル(&R)"
+            Icon().History, "ファイル履歴(&R)"
         )
-        menu["historyMenu"].addActions(
-            [
-                QAction(
-                    text=f"&{i+1 if i < 9 else 0}: {filePath}",
-                    parent=self,
-                    triggered=self.openProjectFileFromHistory(filePath),
-                    shortcut=QKeySequence("Ctrl+R") if i == 0 else False,
-                )
-                for i, filePath in enumerate(
-                    list(dict.fromkeys(self.settings["FileHistory"]))[:10]
-                )
-            ]
-        )
-        menu["historyMenu"].addSeparator()
-        menu["historyMenu"].addAction(
-            QAction(
-                text="履歴ウィンドウ(&R)",
-                parent=self,
-                triggered=print,
-                shortcut=QKeySequence("Shift+Ctrl+R"),
-            )
-        )
+        self.setFileHistoryMenu()
         menu["fileMenu"].addSeparator()
         menu["fileMenu"].addAction(list(_g.qAction["file"].values())[-1])
 
@@ -289,7 +268,7 @@ class MainWindow(QMainWindow):
             ),
             "History": QAction(
                 icon=icon.History,
-                text="最近使用したファイル(&R)",
+                text="ファイル履歴(&R)",
                 parent=self,
                 triggered=print,
                 shortcut=QKeySequence("Ctrl+Shift+R"),
@@ -457,6 +436,8 @@ class MainWindow(QMainWindow):
         if ret:
             self.currentFilePath
             self.currentFilePath = filePath
+            self.addFileHistory(filePath)
+            self.setFileHistoryMenu()
             self.latestData = DataOperation.makeSaveData()
             self.setWindowTitle(f"SoroEditor - {filePath}")
         return ret
@@ -490,17 +471,62 @@ class MainWindow(QMainWindow):
             if data:
                 DataOperation.setTextInTextBoxes(data)
                 self.currentFilePath = filePath
+                self.addFileHistory(filePath)
+                self.setFileHistoryMenu()
                 self.latestData = data
                 return True
             else:
+                QMessageBox.information(
+                    self,
+                    "SoroEditor - Infomation",
+                    f"ファイル: {filePath} の開始に失敗しました\nプロジェクトファイルを確認してください"
+                )
                 return False
         return False
 
     def openProjectFileFromHistory(self, filePath: str = ""):
         def inner():
-            return self.openProjectFile(filePath)
+            ret = self.openProjectFile(filePath)
+            if not ret:
+                fileHistory = self.settings["FileHistory"]
+                fileHistory.remove(filePath)
+                SettingOperation.writeSettingFile(self.settings)
+                self.setFileHistoryMenu()
+            return ret
 
         return inner
+
+    def setFileHistoryMenu(self):
+        for action in menu["historyMenu"].actions():
+            menu["historyMenu"].removeAction(action)
+        menu["historyMenu"].addActions(
+            [
+                QAction(
+                    text=f"&{i+1 if i < 9 else 0}: {filePath}",
+                    parent=self,
+                    triggered=self.openProjectFileFromHistory(filePath),
+                    shortcut=QKeySequence("Ctrl+R") if i == 0 else False,
+                )
+                for i, filePath in enumerate(
+                    list(dict.fromkeys(self.settings["FileHistory"]))[:10]
+                )
+            ]
+        )
+        menu["historyMenu"].addSeparator()
+        menu["historyMenu"].addAction(
+            QAction(
+                text="履歴ウィンドウ(&R)",
+                parent=self,
+                triggered=print,
+                shortcut=QKeySequence("Shift+Ctrl+R"),
+            )
+        )
+
+    def addFileHistory(self, filePath: str):
+        fileHistory = self.settings["FileHistory"]
+        fileHistory.insert(0, filePath)
+        self.settings["FileHistory"] = list(dict.fromkeys(fileHistory))
+        SettingOperation.writeSettingFile(self.settings)
 
     def dataChangedAlert(self) -> QMessageBox:
         messageBox = QMessageBox(self)
