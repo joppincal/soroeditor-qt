@@ -136,6 +136,7 @@ class SettingWindow(QWidget):
         data["Size"] = size
 
         data["ToolBar"] = self.settings["ToolBar"]
+        data["FileHistory"] = self.settings["FileHistory"]
 
         self.settings = data
         self.parent().settings = self.settings
