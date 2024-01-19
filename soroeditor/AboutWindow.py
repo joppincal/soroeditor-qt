@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel, QWidget
 
+from soroeditor import __global__
 from soroeditor.Icon import Icon
 
 
@@ -13,7 +14,7 @@ class AboutWindow(QWidget):
         self.setFixedSize(300, 500)
         self.setWindowFlags(Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
-        self.version = "0.0.0"  # temporary
+        self.version = __global__.__version__
         self.makeLayout()
 
     def makeLayout(self):
