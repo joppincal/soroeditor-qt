@@ -113,7 +113,7 @@ class SettingWindow(QWidget):
             ToolBarSettingWindow(self, Qt.WindowType.Dialog)
 
     def saveSetting(self):
-        default = data = SettingOperation.defaultSettingData()
+        default = SettingOperation.defaultSettingData()
         data = SettingOperation.defaultSettingData()
         data["Font"] = self.widgetsForVBox1[1].currentText()
 
