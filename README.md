@@ -1,17 +1,21 @@
-# SoroEditor - Parallel Synchronous Text Editor
+[README-en.md](README-en.md)
 
-SoroEditor is Parallel Synchronous Text Editor.
+# SoroEditor - 並列同期テキストエディタ
 
-Multiple text boxes are lined up with synchronized scrolling, and the contents of each can be edited.
+![splash](soroeditor/src/splash.png)
 
-## Usage
+SoroEditorは並列同期テキストエディタです。
 
-In preparation
+複数のテキストボックスを並べて同期スクロールし、それぞれの内容を編集することができます。
 
-## Other
+## 使い方
 
-This repository is a reworking of my previous work, SoroEditor (created with tkinter + ttkbootstrap), using PySide6. The main goal at present is to reproduce the functionality of the previous work.
+準備中
 
-The purpose of the re-production is twofold. First, I felt the limitations of working with tkinter. Second, I wanted to try a more modern GUI kit.
+## その他
 
-I, Joppincal, am a non-English speaking person and a beginner in programming and GitHub. The code may be a bit rusty, and this README was created with a great deal of help from machine translators. If you find anything wrong, please help me out.
+このリポジトリは、私の前作 SoroEditor (tkinter + ttkbootstrap で作成) を PySide6 を使って作り直したものです。当面の目標は、前作の機能を再現することです。
+
+再制作の目的は2つあります。第一に、tkinterでの作業に限界を感じたこと。第二に、よりモダンなGUIキットを試してみたかったことです。
+
+私、Joppincalはプログラミングに関しても、Githubに関しても全くの初心者です。指摘・助言があれば、是非よろしくお願いします。
