@@ -12,6 +12,35 @@ Multiple text boxes are lined up with synchronized scrolling, and the contents o
 
 In preparation
 
+## Development status
+
+### Implemented Features
+
+- **Synchronized scrolling**
+- Menu bar and toolbar
+- Text editor settings
+  - Fonts
+- Project files
+- Configuration File
+
+### Features to be implemented
+
+- Editing from menu bar/toolbar
+- Search
+  - Search in file
+  - Web search
+- Bookmarks
+- Canned Text
+- Import
+- Export
+- Help
+- Auto Save
+- Backup
+- Text Editor Settings
+  - Number of columns
+  - Column Width
+- Theme
+
 ## Other
 
 This repository is a reworking of my previous work, SoroEditor (created with tkinter + ttkbootstrap), using PySide6. The main goal at present is to reproduce the functionality of the previous work.
