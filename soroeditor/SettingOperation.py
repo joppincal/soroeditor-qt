@@ -13,7 +13,7 @@ __DEFAULTSETTINGDATA = {
     "FileHistory": [],
     "Font": "MS UI Gothic",
     "FontSize": 11,
-    "Size": (800, 600),
+    "Size": [800, 600],
     "ToolBar": {
         1: {
             "Area": "Top",
@@ -80,9 +80,10 @@ def settingVerification(dic: dict) -> dict:
         and all([type(i) is int for i in size])
     ):
         pass
-    elif size == "FullScreen":
+    elif size in ("Maximize", "FullScreen"):
         pass
     else:
+        print('Q')
         dic["Size"] = default["Size"]
 
     if font in QFontDatabase.families(QFontDatabase.WritingSystem.Any):

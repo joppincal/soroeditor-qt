@@ -380,6 +380,13 @@ class MainWindow(QMainWindow):
                 parent=self,
                 triggered=print,
             ),
+            "FullScreen": QAction(
+                icon=icon.FullScreen,
+                text="全画面表示(F)",
+                parent=self,
+                triggered=self.toggleFullScreenMode,
+                shortcut=QKeySequence("F11")
+            ),
         }
         _g.qAction["help"] = {
             "Help": QAction(
@@ -602,18 +609,16 @@ class MainWindow(QMainWindow):
             size = self.settings["Size"]
             if type(size) is list:
                 self.resize(*size)
-            elif size == "FullScreen":
-                self.showMaximized()
             else:
                 self.resize(*SettingOperation.defaultSettingData()["Size"])
 
-            if size != "FullScreen":
-                self.move(0, 0)
-                screen = self.screen()
-                screen_geometry = screen.geometry()
-                x = (screen_geometry.width() - self.width()) // 2
-                y = (screen_geometry.height() - self.height()) // 2
-                self.move(x, y)
+            if size in ("Maximize", "FullScreen"):
+                self.showMaximized()
+                if size == "FullScreen":
+                    self.toggleFullScreenMode()
+
+            if size not in ("Maximize", "FullScreen"):
+                self.moveWindowToCenter()
 
         if item in ("FontFamily", "Font", "All"):
             fontFamily = self.settings["Font"]
@@ -629,6 +634,25 @@ class MainWindow(QMainWindow):
             for toolBar in _g.toolBars:
                 self.removeToolBar(toolBar)
             self.makeToolBar()
+
+    def toggleFullScreenMode(self):
+        if self.isFullScreen():
+            self.showNormal()
+            if self.settings["Size"] == "FullScreen":
+                self.resize(*SettingOperation.defaultSettingData()["Size"])
+                self.moveWindowToCenter()
+            else:
+                self.reflectionSettings("Size")
+        else:
+            self.showFullScreen()
+
+    def moveWindowToCenter(self):
+        self.move(0, 0)
+        screen = self.screen()
+        screen_geometry = screen.geometry()
+        x = (screen_geometry.width() - self.width()) // 2
+        y = (screen_geometry.height() - self.height()) // 2
+        self.move(x, y)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.isDataChanged():

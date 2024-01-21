@@ -53,7 +53,7 @@ class SettingWindow(QWidget):
         # ウィンドウサイズ
         windowSizeComboBox = QComboBox()
         windowSizeComboBox.addItems(
-            ["800*600", "1200*600", "1200*800", "FullScreen"]
+            ["800*600", "1200*600", "1200*800", "Maximize", "FullScreen"]
         )
         # vBox1へウィジェットを追加
         self.widgetsForVBox1 = [
@@ -131,7 +131,7 @@ class SettingWindow(QWidget):
                 size = [int(num) for num in size]
             except ValueError:
                 size = None
-        if type(size) is not list and size != "FullScreen":
+        if type(size) is not list and size not in ("Maximize", "FullScreen"):
             size = default["Size"]
         data["Size"] = size
 
@@ -167,7 +167,7 @@ class SettingWindow(QWidget):
         windowSize = settings.get("Size", default["Size"])
         if type(windowSize) is list:
             windowSize = "*".join([str(i) for i in windowSize])
-        elif windowSize == "FullScreen":
+        elif windowSize in ("Maximize", "FullScreen"):
             pass
         else:
             windowSize = default["Size"]

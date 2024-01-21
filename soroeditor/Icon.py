@@ -13,6 +13,7 @@ class Icon:
         self.Copy = QPixmap(f"{directory}/{color}/Copy.svg")
         self.Cut = QPixmap(f"{directory}/{color}/Cut.svg")
         self.Export = QPixmap(f"{directory}/{color}/Export.svg")
+        self.FullScreen = QPixmap(f"{directory}/{color}/FullScreen.svg")
         self.Help = QPixmap(f"{directory}/{color}/Help.svg")
         self.History = QPixmap(f"{directory}/{color}/History.svg")
         self.Import = QPixmap(f"{directory}/{color}/Import.svg")
