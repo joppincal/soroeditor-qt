@@ -18,14 +18,14 @@ from PySide6.QtWidgets import (
 from soroeditor import SettingOperation
 
 
-class SettingWindow(QWidget):
+class ProjectSettingWindow(QWidget):
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
         self.settings = self.parent().settings  # type: ignore
         self.resize(600, 500)
         self.setWindowFlags(Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
-        self.setWindowTitle("SoroEditor - 設定")
+        self.setWindowTitle("SoroEditor - プロジェクト設定")
         self.makeLayout()
         self.setSettings(self.settings)
 
@@ -112,7 +112,8 @@ class SettingWindow(QWidget):
         if button.objectName() == "buttonForToolBarSetting":
             ToolBarSettingWindow(self, Qt.WindowType.Dialog)
 
-    def saveSetting(self):
+    def saveSetting(self) -> bool:
+        return
         default = SettingOperation.defaultSettingData()
         data = SettingOperation.defaultSettingData()
         data["Font"] = self.widgetsForVBox1[1].currentText()
@@ -179,7 +180,7 @@ class ToolBarSettingWindow(QWidget):
         super().__init__(parent, f)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.resize(1000, 500)
-        self.setWindowTitle("SoroEditor - 設定/ツールバー")
+        self.setWindowTitle("SoroEditor - プロジェクト設定/ツールバー")
         vBox = QVBoxLayout(self)
         vBoxContainContents = QVBoxLayout()
         vBox.addLayout(vBoxContainContents)
@@ -294,6 +295,7 @@ class ToolBarSettingWindow(QWidget):
             self.close()
 
     def saveToolBarSetting(self) -> bool:
+        return
         data: dict[int, dict] = {}
         checks = [checkBox.isChecked() for checkBox in self.checkBoxes]
         areas = [

@@ -28,6 +28,7 @@ from soroeditor import DataOperation, SettingOperation
 from soroeditor import __global__ as _g
 from soroeditor.AboutWindow import AboutWindow
 from soroeditor.Icon import Icon
+from soroeditor.ProjectSettingWindow import ProjectSettingWindow
 from soroeditor.SettingWindow import SettingWindow
 from soroeditor.ThirdPartyNoticesWindow import ThirdPartyNoticesWindow
 
@@ -161,8 +162,16 @@ class MainWindow(QMainWindow):
                 "actions": None,
             },
             "Clock": {"text": "時計", "icon": None, "actions": None},
-            "CountDown": {"text": "カウントダウン", "icon": None, "actions": None},
-            "StopWatch": {"text": "ストップウォッチ", "icon": None, "actions": None},
+            "CountDown": {
+                "text": "カウントダウン",
+                "icon": None,
+                "actions": None,
+            },
+            "StopWatch": {
+                "text": "ストップウォッチ",
+                "icon": None,
+                "actions": None,
+            },
         }
         toolButtonStyle = "TextBesideIcon"  # temporary
         toolButtonStyle = getattr(
@@ -257,7 +266,8 @@ class MainWindow(QMainWindow):
                 icon=icon.ProjectSetting,
                 text="プロジェクト設定(&F)",
                 parent=self,
-                triggered=print,
+                triggered=self.openSubWindow("ProjectSettingWindow"),
+                shortcut=QKeySequence("Ctrl+Shift+Alt+P"),
             ),
             "Reload": QAction(
                 icon=icon.Refresh,
@@ -385,7 +395,7 @@ class MainWindow(QMainWindow):
                 text="全画面表示(F)",
                 parent=self,
                 triggered=self.toggleFullScreenMode,
-                shortcut=QKeySequence("F11")
+                shortcut=QKeySequence("F11"),
             ),
         }
         _g.qAction["help"] = {
@@ -486,7 +496,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(
                     self,
                     "SoroEditor - Infomation",
-                    f"ファイル: {filePath} の開始に失敗しました\nプロジェクトファイルを確認してください"
+                    f"ファイル: {filePath} の開始に失敗しました\nプロジェクトファイルを確認してください",
                 )
                 return False
         return False
@@ -539,7 +549,9 @@ class MainWindow(QMainWindow):
         messageBox = QMessageBox(self)
         messageBox.setIcon(QMessageBox.Icon.Question)
         messageBox.setWindowTitle("SoroEditor - 終了")
-        messageBox.setText("保存されていない変更があります\n閉じる前に保存しますか")
+        messageBox.setText(
+            "保存されていない変更があります\n閉じる前に保存しますか"
+        )
         messageBox.setStandardButtons(
             QMessageBox.StandardButton.Save
             | QMessageBox.StandardButton.Discard
@@ -668,20 +680,28 @@ class MainWindow(QMainWindow):
                 return event.ignore()
         return super().closeEvent(event)
 
-    def openSubWindow(self, type_: QWidget):
+    def openSubWindow(self, type_: str):
         self.subWindows = {
-            "ThirdPartyNoticesWindow": None,
             "AboutWindow": None,
+            "PrpjectFileSettingWindow": None,
             "SettingWindow": None,
+            "ThirdPartyNoticesWindow": None,
         }
 
-        subWindow: type[ThirdPartyNoticesWindow | AboutWindow | SettingWindow]
-        if type_ == "ThirdPartyNoticesWindow":
-            subWindow = ThirdPartyNoticesWindow
-        elif type_ == "AboutWindow":
+        subWindow: type[
+            AboutWindow
+            | ProjectSettingWindow
+            | SettingWindow
+            | ThirdPartyNoticesWindow
+        ]
+        if type_ == "AboutWindow":
             subWindow = AboutWindow
+        elif type_ == "ProjectSettingWindow":
+            subWindow = ProjectSettingWindow
         elif type_ == "SettingWindow":
             subWindow = SettingWindow
+        elif type_ == "ThirdPartyNoticesWindow":
+            subWindow = ThirdPartyNoticesWindow
         else:
             return
 
