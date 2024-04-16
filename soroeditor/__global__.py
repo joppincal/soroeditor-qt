@@ -9,3 +9,5 @@ toolBars: list[QToolBar]
 textEdits: list[PlainTextEdit]
 lineEdits: list[LineEdit]
 textEditor: TextEditor
+settings: dict
+projectSettings: dict

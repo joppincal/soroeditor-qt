@@ -37,6 +37,7 @@ __DEFAULTSETTINGDATA = {
             "Title": "ツールバー2",
         },
     },
+    "Version": "0.0.0",
 }
 
 
@@ -83,7 +84,6 @@ def settingVerification(dic: dict) -> dict:
     elif size in ("Maximize", "FullScreen"):
         pass
     else:
-        print('Q')
         dic["Size"] = default["Size"]
 
     if font in QFontDatabase.families(QFontDatabase.WritingSystem.Any):

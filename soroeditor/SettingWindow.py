@@ -1,3 +1,5 @@
+import copy
+
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QFontDatabase
@@ -16,12 +18,13 @@ from PySide6.QtWidgets import (
 )
 
 from soroeditor import SettingOperation
+from soroeditor import __global__ as _g
 
 
 class SettingWindow(QWidget):
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
-        self.settings = self.parent().settings  # type: ignore
+        self.settings = copy.deepcopy(_g.settings)
         self.resize(600, 500)
         self.setWindowFlags(Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
@@ -104,7 +107,9 @@ class SettingWindow(QWidget):
                 )
                 self.close()
             else:
-                QMessageBox.warning(self, "SoroEditor - Error", "設定の保存に失敗しました")
+                QMessageBox.warning(
+                    self, "SoroEditor - Error", "設定の保存に失敗しました"
+                )
         if button == self.bottomBar.button(
             self.bottomBar.StandardButton.Cancel
         ):
@@ -113,16 +118,13 @@ class SettingWindow(QWidget):
             ToolBarSettingWindow(self, Qt.WindowType.Dialog)
 
     def saveSetting(self):
-        default = SettingOperation.defaultSettingData()
-        data = SettingOperation.defaultSettingData()
-        data["Font"] = self.widgetsForVBox1[1].currentText()
-
+        self.settings["Font"] = self.widgetsForVBox1[1].currentText()
         fontSize = self.widgetsForVBox1[3].currentText()
         try:
             fontSize = int(fontSize)
         except ValueError:
-            fontSize = default["FontSize"]
-        data["FontSize"] = fontSize
+            fontSize = None
+        self.settings["FontSize"] = fontSize
 
         size = self.widgetsForVBox1[5].currentText()
         if "*" in size:
@@ -132,17 +134,14 @@ class SettingWindow(QWidget):
             except ValueError:
                 size = None
         if type(size) is not list and size not in ("Maximize", "FullScreen"):
-            size = default["Size"]
-        data["Size"] = size
+            size = None
+        self.settings["Size"] = size
 
-        data["ToolBar"] = self.settings["ToolBar"]
-        data["FileHistory"] = self.settings["FileHistory"]
-
-        self.settings = data
-        self.parent().settings = self.settings
+        self.settings = SettingOperation.settingVerification(self.settings)
+        _g.settings = copy.deepcopy(self.settings)
         self.parent().reflectionSettings("All")
 
-        return SettingOperation.writeSettingFile(data)
+        return SettingOperation.writeSettingFile(_g.settings)
 
     def addWidgetsFor(
         self, layout: QHBoxLayout | QVBoxLayout, widgets: list[QWidget]
@@ -171,7 +170,10 @@ class SettingWindow(QWidget):
             pass
         else:
             windowSize = default["Size"]
-        self.widgetsForVBox1[5].setCurrentText(windowSize)
+        for _ in range(2):
+            self.widgetsForVBox1[5].insertSeparator(0)
+        self.widgetsForVBox1[5].insertItem(0, windowSize)
+        self.widgetsForVBox1[5].setCurrentIndex(0)
 
 
 class ToolBarSettingWindow(QWidget):
@@ -287,7 +289,9 @@ class ToolBarSettingWindow(QWidget):
                 )
                 self.close()
             else:
-                QMessageBox.warning(self, "SoroEditor - Error", "設定の保存に失敗しました")
+                QMessageBox.warning(
+                    self, "SoroEditor - Error", "設定の保存に失敗しました"
+                )
         if button == self.bottomBar.button(
             self.bottomBar.StandardButton.Cancel
         ):
@@ -327,12 +331,12 @@ class ToolBarSettingWindow(QWidget):
             }
 
         self.parent().settings["ToolBar"] = data  # type: ignore
-        self.parent().parent().settings["ToolBar"] = data  # type: ignore
+        _g.settings["ToolBar"] = data
 
         self.parent().parent().reflectionSettings("All")  # type: ignore
 
         return SettingOperation.writeSettingFile(
-            self.parent().settings  # type: ignore
+            _g.settings
         )
 
     def setSettings(self):
