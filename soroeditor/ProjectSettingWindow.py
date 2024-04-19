@@ -1,3 +1,5 @@
+import copy
+
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QFontDatabase
@@ -16,18 +18,19 @@ from PySide6.QtWidgets import (
 )
 
 from soroeditor import SettingOperation
+from soroeditor import __global__ as _g
 
 
 class ProjectSettingWindow(QWidget):
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
-        self.settings = self.parent().settings  # type: ignore
+        self.projectSettings = copy.deepcopy(_g.projectSettings)
         self.resize(600, 500)
         self.setWindowFlags(Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.setWindowTitle("SoroEditor - プロジェクト設定")
         self.makeLayout()
-        self.setSettings(self.settings)
+        self.setSettings(self.projectSettings)
 
     def makeLayout(self):
         # 全体の形
@@ -98,13 +101,13 @@ class ProjectSettingWindow(QWidget):
     def buttonClicked(self):
         button = self.sender()
         if button == self.bottomBar.button(self.bottomBar.StandardButton.Save):
-            if self.saveSetting():
-                QMessageBox.information(
-                    self, "SoroEditor - Infomation", "設定を保存しました"
-                )
-                self.close()
-            else:
-                QMessageBox.warning(self, "SoroEditor - Error", "設定の保存に失敗しました")
+            self.saveSetting()
+            QMessageBox.information(
+                self,
+                "SoroEditor - Infomation",
+                "プロジェクト設定はプロジェクトファイルの保存時に保存されます",
+            )
+            self.close()
         if button == self.bottomBar.button(
             self.bottomBar.StandardButton.Cancel
         ):
@@ -112,18 +115,14 @@ class ProjectSettingWindow(QWidget):
         if button.objectName() == "buttonForToolBarSetting":
             ToolBarSettingWindow(self, Qt.WindowType.Dialog)
 
-    def saveSetting(self) -> bool:
-        return
-        default = SettingOperation.defaultSettingData()
-        data = SettingOperation.defaultSettingData()
-        data["Font"] = self.widgetsForVBox1[1].currentText()
-
+    def saveSetting(self):
+        self.projectSettings["Font"] = self.widgetsForVBox1[1].currentText()
         fontSize = self.widgetsForVBox1[3].currentText()
         try:
             fontSize = int(fontSize)
         except ValueError:
-            fontSize = default["FontSize"]
-        data["FontSize"] = fontSize
+            fontSize = None
+        self.projectSettings["FontSize"] = fontSize
 
         size = self.widgetsForVBox1[5].currentText()
         if "*" in size:
@@ -133,17 +132,14 @@ class ProjectSettingWindow(QWidget):
             except ValueError:
                 size = None
         if type(size) is not list and size not in ("Maximize", "FullScreen"):
-            size = default["Size"]
-        data["Size"] = size
+            size = None
+        self.projectSettings["Size"] = size
 
-        data["ToolBar"] = self.settings["ToolBar"]
-        data["FileHistory"] = self.settings["FileHistory"]
-
-        self.settings = data
-        self.parent().settings = self.settings
+        self.projectSettings = SettingOperation.settingVerification(
+            self.projectSettings
+        )
+        _g.projectSettings = copy.deepcopy(self.projectSettings)
         self.parent().reflectionSettings("All")
-
-        return SettingOperation.writeSettingFile(data)
 
     def addWidgetsFor(
         self, layout: QHBoxLayout | QVBoxLayout, widgets: list[QWidget]
@@ -172,7 +168,10 @@ class ProjectSettingWindow(QWidget):
             pass
         else:
             windowSize = default["Size"]
-        self.widgetsForVBox1[5].setCurrentText(windowSize)
+        for _ in range(2):
+            self.widgetsForVBox1[5].insertSeparator(0)
+        self.widgetsForVBox1[5].insertItem(0, windowSize)
+        self.widgetsForVBox1[5].setCurrentIndex(0)
 
 
 class ToolBarSettingWindow(QWidget):
@@ -282,21 +281,20 @@ class ToolBarSettingWindow(QWidget):
     def buttonClicked(self):
         button = self.sender()
         if button == self.bottomBar.button(self.bottomBar.StandardButton.Save):
-            if self.saveToolBarSetting():
-                QMessageBox.information(
-                    self, "SoroEditor - Infomation", "設定を保存しました"
-                )
-                self.close()
-            else:
-                QMessageBox.warning(self, "SoroEditor - Error", "設定の保存に失敗しました")
+            self.saveToolBarSetting()
+            QMessageBox.information(
+                self,
+                "SoroEditor - Infomation",
+                "プロジェクト設定はプロジェクトファイルの保存時に保存されます",
+            )
+            self.close
         if button == self.bottomBar.button(
             self.bottomBar.StandardButton.Cancel
         ):
             self.close()
 
-    def saveToolBarSetting(self) -> bool:
-        return
-        data: dict[int, dict] = {}
+    def saveToolBarSetting(self):
+        data = {}
         checks = [checkBox.isChecked() for checkBox in self.checkBoxes]
         areas = [
             comboBox.currentText() for comboBox in self.comboBoxesContainArea
@@ -308,7 +306,7 @@ class ToolBarSettingWindow(QWidget):
         ]
         contentsList = []
         for comboBoxes in self.comboBoxesList:
-            contents: list[str] = []
+            contents = []
             for comboBox in comboBoxes:
                 text = comboBox.currentText()  # type: ignore
                 for contentName, contentValue in self.contentPairs:
@@ -329,13 +327,9 @@ class ToolBarSettingWindow(QWidget):
             }
 
         self.parent().settings["ToolBar"] = data  # type: ignore
-        self.parent().parent().settings["ToolBar"] = data  # type: ignore
+        _g.projectSettings["ToolBar"] = data
 
         self.parent().parent().reflectionSettings("All")  # type: ignore
-
-        return SettingOperation.writeSettingFile(
-            self.parent().settings  # type: ignore
-        )
 
     def setSettings(self):
         settings = SettingOperation.openSettingFile()["ToolBar"]
