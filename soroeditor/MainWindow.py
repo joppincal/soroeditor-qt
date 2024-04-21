@@ -29,8 +29,7 @@ from soroeditor import DataOperation, SettingOperation
 from soroeditor import __global__ as _g
 from soroeditor.AboutWindow import AboutWindow
 from soroeditor.Icon import Icon
-from soroeditor.ProjectSettingWindow import ProjectSettingWindow
-from soroeditor.SettingWindow import SettingWindow
+from soroeditor.NewSettingWindow import SettingWindow
 from soroeditor.ThirdPartyNoticesWindow import ThirdPartyNoticesWindow
 
 
@@ -65,7 +64,7 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.loop)
         self.timer.start()
 
-        self.reflectionSettings("Size")
+        self.reflectionSettings("All")
         self.show()
         splash.hide()
 
@@ -681,10 +680,9 @@ class MainWindow(QMainWindow):
             )
 
     def reflectToolBar(self):
-        if "ToolBar" in _g.projectSettings.get("ToolBar", []):
-            for toolBar in _g.toolBars:
-                self.removeToolBar(toolBar)
-            self.makeToolBar()
+        for toolBar in _g.toolBars:
+            self.removeToolBar(toolBar)
+        self.makeToolBar()
 
     def toggleFullScreenMode(self):
         if self.isFullScreen():
@@ -722,30 +720,32 @@ class MainWindow(QMainWindow):
     def openSubWindow(self, type_: str):
         self.subWindows = {
             "AboutWindow": None,
-            "PrpjectFileSettingWindow": None,
+            "ProjectSettingWindow": None,
             "SettingWindow": None,
             "ThirdPartyNoticesWindow": None,
         }
 
         subWindow: type[
             AboutWindow
-            | ProjectSettingWindow
             | SettingWindow
             | ThirdPartyNoticesWindow
         ]
+        mode = []
         if type_ == "AboutWindow":
             subWindow = AboutWindow
         elif type_ == "ProjectSettingWindow":
-            subWindow = ProjectSettingWindow
+            subWindow = SettingWindow
+            mode = ["Project"]
         elif type_ == "SettingWindow":
             subWindow = SettingWindow
+            mode = ["Default"]
         elif type_ == "ThirdPartyNoticesWindow":
             subWindow = ThirdPartyNoticesWindow
         else:
             return
 
         def inner():
-            self.subWindows[type_] = subWindow(self)
+            self.subWindows[type_] = subWindow(self, *mode)
             self.subWindows[type_].show()
 
         return inner
