@@ -29,7 +29,7 @@ from soroeditor import DataOperation, SettingOperation
 from soroeditor import __global__ as _g
 from soroeditor.AboutWindow import AboutWindow
 from soroeditor.Icon import Icon
-from soroeditor.NewSettingWindow import SettingWindow
+from soroeditor.SettingWindow import SettingWindow
 from soroeditor.ThirdPartyNoticesWindow import ThirdPartyNoticesWindow
 
 
