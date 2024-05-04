@@ -1,10 +1,15 @@
 from PySide6.QtGui import QPixmap
 
+from darkdetect import isDark
+
 
 class Icon:
     def __init__(self):
         super().__init__()
-        color = "black"  # default
+        if isDark():
+            color = "white"
+        else:
+            color = "black"
         directory = "soroeditor/src/icon/"
         self.Icon = QPixmap(f"{directory}/Icon.svg")
         self.Balance = QPixmap(f"{directory}/{color}/Balance.svg")
