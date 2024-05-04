@@ -2,6 +2,7 @@ import copy
 import os
 import sys
 
+from darkdetect import isDark
 from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import (
@@ -24,7 +25,6 @@ from PySide6.QtWidgets import (
     QSplashScreen,
     QWidget,
 )
-from darkdetect import isDark
 
 from soroeditor import DataOperation, SettingOperation
 from soroeditor import __global__ as _g
