@@ -78,6 +78,7 @@ class SettingWindow(QWidget):
             [str(i) for i in list(range(1, 101)).__reversed__()]
         )
         fontSizeComboBox.setEditable(True)
+        fontSizeComboBox.findChild(QLineEdit).setTextMargins(-9, 0, 0, 0)
         # ウィンドウサイズ
         windowSizeComboBox = QComboBox()
         windowSizeComboBox.addItems(
@@ -220,8 +221,9 @@ class SettingWindow(QWidget):
         fontSize = settings.get("FontSize", default["FontSize"])
         if type(fontSize) is not int:
             fontSize = default["FontSize"]
-        self.widgetsForVBox1[3].setCurrentText(str(fontSize))
-        self.widgetsForVBox1[3].setCurrentIndex(100 - fontSize)
+        self.widgetsForVBox1[3].setCurrentIndex(
+            self.widgetsForVBox1[3].count() - fontSize
+        )
 
         windowSize = settings.get("Size", default["Size"])
         if type(windowSize) is list:

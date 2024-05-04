@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QSplashScreen,
     QWidget,
 )
+from darkdetect import isDark
 
 from soroeditor import DataOperation, SettingOperation
 from soroeditor import __global__ as _g
@@ -212,6 +213,16 @@ class MainWindow(QMainWindow):
                     if elements.get("icon", None):
                         label.setPixmap(elements["icon"])
                     toolBar.addWidget(label)
+
+            if isDark():
+                colorName = "#2b2b2b"
+            else:
+                colorName = "#eaeaea"
+            toolBar.setStyleSheet(
+                f"""
+QToolButton {{ border-style: solid; border-radius: 3px }}
+QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
+            )
 
             _g.toolBars.append(toolBar)
 
@@ -771,6 +782,8 @@ class TextEditor(QWidget):
         for lineEdit in _g.lineEdits:
             lineEdit.cursorPositionChanged.connect(self.cursorPositionChanged)
             lineEdit.focusReceived.connect(self.focusReceived)
+            if lineEdit.style().name() == "windows11":
+                lineEdit.setTextMargins(-5, 0, 0, 0)
 
         self.mainScrollBar = QScrollBar()
         self.mainScrollBar.valueChanged.connect(self.mainScrollBarValueChanged)
