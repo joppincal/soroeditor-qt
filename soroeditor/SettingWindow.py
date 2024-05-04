@@ -1,3 +1,4 @@
+import copy
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QFontDatabase
@@ -16,18 +17,45 @@ from PySide6.QtWidgets import (
 )
 
 from soroeditor import SettingOperation
+from soroeditor import __global__ as _g
 
 
 class SettingWindow(QWidget):
-    def __init__(self, parent: QWidget) -> None:
+    def __init__(self, parent: QWidget, mode: str = "Default") -> None:
         super().__init__(parent)
-        self.settings = self.parent().settings  # type: ignore
+        if mode not in ("Default", "Project"):
+            mode = "Default"
+
+        self.mode = mode
+        self.dataByMode: dict = {}
+        if mode == "Default":
+            self.dataByMode["Settings"] = _g.settings
+            self.dataByMode["WindowTitle"] = "デフォルト設定"
+            self.dataByMode["SaveSuccessMessage"] = (
+                "SoroEditor - Infomation",
+                "設定を保存しました",
+            )
+            self.dataByMode["SaveFailedMessage"] = (
+                "SoroEditor - Error",
+                "設定の保存に失敗しました",
+            )
+        elif mode == "Project":
+            self.dataByMode["Settings"] = _g.projectSettings
+            self.dataByMode["WindowTitle"] = "プロジェクト設定"
+            self.dataByMode["SaveSuccessMessage"] = (
+                "SoroEditor - Infomation",
+                "プロジェクト設定はプロジェクトファイルの保存時に保存されます",
+            )
+            self.dataByMode["SaveFailedMessage"] = (
+                "SoroEditor - Error",
+                "設定の保存に失敗しました",
+            )
         self.resize(600, 500)
         self.setWindowFlags(Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
-        self.setWindowTitle("SoroEditor - 設定")
+        self.setWindowTitle("SoroEditor - " + self.dataByMode["WindowTitle"])
         self.makeLayout()
-        self.setSettings(self.settings)
+        self.setSettings(self.dataByMode["Settings"])
 
     def makeLayout(self):
         # 全体の形
@@ -75,54 +103,72 @@ class SettingWindow(QWidget):
         buttonForToolBarSetting.clicked.connect(self.buttonClicked)
 
         self.widgetsForVBox2 = [buttonForToolBarSetting]
-        self.addWidgetsFor(vBox2, self.widgetsForVBox2)
+        vBox2.addWidget(buttonForToolBarSetting)
         vBox2.addStretch(1)
+        # vBox2.addStretch(1)
 
         # ボトムバー
-        self.bottomBar = QDialogButtonBox()
-        self.bottomBar.setStandardButtons(
-            self.bottomBar.StandardButton.Save
-            | self.bottomBar.StandardButton.Cancel
+        bottomBarBox = QHBoxLayout()
+        self.dialogButtonBox = QDialogButtonBox()
+        self.dialogButtonBox.setStandardButtons(
+            self.dialogButtonBox.StandardButton.Save
+            | self.dialogButtonBox.StandardButton.Cancel
         )
-        self.bottomBar.button(self.bottomBar.StandardButton.Save).setText(
-            "保存(&S)"
-        )
-        self.bottomBar.button(self.bottomBar.StandardButton.Cancel).setText(
-            "終了(&C)"
-        )
-        for button in self.bottomBar.buttons():
+        self.dialogButtonBox.button(
+            self.dialogButtonBox.StandardButton.Save
+        ).setText("保存(&S)")
+        self.dialogButtonBox.button(
+            self.dialogButtonBox.StandardButton.Cancel
+        ).setText("終了(&C)")
+        for button in self.dialogButtonBox.buttons():
             button.clicked.connect(self.buttonClicked)
-        vBox.addWidget(self.bottomBar, alignment=Qt.AlignmentFlag.AlignBottom)
+        # 設定適用範囲設定チェックボックス
+        if self.mode == "Default":
+            checkBoxText = "現在"
+        elif self.mode == "Project":
+            checkBoxText = "次回以降"
+        self.settingCoverageCheckbox = QCheckBox(
+            "変更内容を" + checkBoxText + "のプロジェクトにも反映する"
+        )
+        # bottomBarBoxにウィジェットを追加
+        bottomBarBox.addStretch(1)
+        bottomBarBox.addWidget(self.settingCoverageCheckbox)
+        bottomBarBox.addWidget(self.dialogButtonBox)
+
+        vBox.addLayout(bottomBarBox)
 
     @QtCore.Slot()
     def buttonClicked(self):
         button = self.sender()
-        if button == self.bottomBar.button(self.bottomBar.StandardButton.Save):
+        if button == self.dialogButtonBox.button(
+            self.dialogButtonBox.StandardButton.Save
+        ):
             if self.saveSetting():
                 QMessageBox.information(
-                    self, "SoroEditor - Infomation", "設定を保存しました"
+                    self, *self.dataByMode["SaveSuccessMessage"]
                 )
                 self.close()
             else:
-                QMessageBox.warning(self, "SoroEditor - Error", "設定の保存に失敗しました")
-        if button == self.bottomBar.button(
-            self.bottomBar.StandardButton.Cancel
+                QMessageBox.warning(
+                    self, *self.dataByMode["SaveFailedMessage"]
+                )
+        if button == self.dialogButtonBox.button(
+            self.dialogButtonBox.StandardButton.Cancel
         ):
             self.close()
         if button.objectName() == "buttonForToolBarSetting":
-            ToolBarSettingWindow(self, Qt.WindowType.Dialog)
+            ToolBarSettingWindow(self)
 
-    def saveSetting(self):
-        default = SettingOperation.defaultSettingData()
-        data = SettingOperation.defaultSettingData()
-        data["Font"] = self.widgetsForVBox1[1].currentText()
-
+    def saveSetting(self) -> bool:
+        self.dataByMode["Settings"]["Font"] = self.widgetsForVBox1[
+            1
+        ].currentText()
         fontSize = self.widgetsForVBox1[3].currentText()
         try:
             fontSize = int(fontSize)
         except ValueError:
-            fontSize = default["FontSize"]
-        data["FontSize"] = fontSize
+            fontSize = None
+        self.dataByMode["Settings"]["FontSize"] = fontSize
 
         size = self.widgetsForVBox1[5].currentText()
         if "*" in size:
@@ -132,17 +178,30 @@ class SettingWindow(QWidget):
             except ValueError:
                 size = None
         if type(size) is not list and size not in ("Maximize", "FullScreen"):
-            size = default["Size"]
-        data["Size"] = size
+            size = None
+        self.dataByMode["Settings"]["Size"] = size
 
-        data["ToolBar"] = self.settings["ToolBar"]
-        data["FileHistory"] = self.settings["FileHistory"]
+        self.dataByMode["Settings"] = SettingOperation.settingVerification(
+            self.dataByMode["Settings"]
+        )
+        self.parent().reflectionSettings("All")  # type: ignore
 
-        self.settings = data
-        self.parent().settings = self.settings
-        self.parent().reflectionSettings("All")
-
-        return SettingOperation.writeSettingFile(data)
+        if self.mode == "Default":
+            if self.settingCoverageCheckbox.isChecked():
+                _g.projectSettings = copy.deepcopy(self.dataByMode["Settings"])
+            return SettingOperation.writeSettingFile(
+                self.dataByMode["Settings"]
+            )
+        elif self.mode == "Project":
+            if self.settingCoverageCheckbox.isChecked():
+                _g.settings = copy.deepcopy(self.dataByMode["Settings"])
+                return SettingOperation.writeSettingFile(
+                    self.dataByMode["Settings"]
+                )
+            else:
+                return True
+        else:
+            return False
 
     def addWidgetsFor(
         self, layout: QHBoxLayout | QVBoxLayout, widgets: list[QWidget]
@@ -171,14 +230,21 @@ class SettingWindow(QWidget):
             pass
         else:
             windowSize = default["Size"]
-        self.widgetsForVBox1[5].setCurrentText(windowSize)
+        for _ in range(2):
+            self.widgetsForVBox1[5].insertSeparator(0)
+        self.widgetsForVBox1[5].insertItem(0, windowSize)
+        self.widgetsForVBox1[5].setCurrentIndex(0)
 
 
 class ToolBarSettingWindow(QWidget):
-    def __init__(self, parent: QWidget, f: Qt.WindowType) -> None:
-        super().__init__(parent, f)
+    def __init__(self, parent: QWidget):
+        super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.resize(1000, 500)
+        self.setWindowTitle(self.parent().windowTitle() + "/ツールバー")  # type: ignore # noqa: E501
+        self.mode = self.parent().mode  # type: ignore
+        self.dataByMode = self.parent().dataByMode  # type: ignore
+
         vBox = QVBoxLayout(self)
         vBoxContainContents = QVBoxLayout()
         vBox.addLayout(vBoxContainContents)
@@ -266,7 +332,7 @@ class ToolBarSettingWindow(QWidget):
             button.clicked.connect(self.buttonClicked)
         vBox.addWidget(self.bottomBar, alignment=Qt.AlignmentFlag.AlignBottom)
 
-        self.setSettings()
+        self.setSettings(self.dataByMode["Settings"]["ToolBar"])
 
         self.show()
 
@@ -282,18 +348,20 @@ class ToolBarSettingWindow(QWidget):
         if button == self.bottomBar.button(self.bottomBar.StandardButton.Save):
             if self.saveToolBarSetting():
                 QMessageBox.information(
-                    self, "SoroEditor - Infomation", "設定を保存しました"
+                    self, *self.dataByMode["SaveSuccessMessage"]
                 )
                 self.close()
             else:
-                QMessageBox.warning(self, "SoroEditor - Error", "設定の保存に失敗しました")
+                QMessageBox.warning(
+                    self, *self.dataByMode["SaveFailedMessage"]
+                )
         if button == self.bottomBar.button(
             self.bottomBar.StandardButton.Cancel
         ):
             self.close()
 
-    def saveToolBarSetting(self) -> bool:
-        data: dict[int, dict] = {}
+    def saveToolBarSetting(self):
+        data = {}
         checks = [checkBox.isChecked() for checkBox in self.checkBoxes]
         areas = [
             comboBox.currentText() for comboBox in self.comboBoxesContainArea
@@ -305,7 +373,7 @@ class ToolBarSettingWindow(QWidget):
         ]
         contentsList = []
         for comboBoxes in self.comboBoxesList:
-            contents: list[str] = []
+            contents = []
             for comboBox in comboBoxes:
                 text = comboBox.currentText()  # type: ignore
                 for contentName, contentValue in self.contentPairs:
@@ -325,17 +393,28 @@ class ToolBarSettingWindow(QWidget):
                 "Contents": contents,
             }
 
-        self.parent().settings["ToolBar"] = data  # type: ignore
-        self.parent().parent().settings["ToolBar"] = data  # type: ignore
+        self.dataByMode["Settings"]["ToolBar"] = data
 
         self.parent().parent().reflectionSettings("All")  # type: ignore
 
-        return SettingOperation.writeSettingFile(
-            self.parent().settings  # type: ignore
-        )
+        if self.mode == "Default":
+            if self.parent().settingCoverageCheckbox.isChecked():
+                _g.projectSettings = copy.deepcopy(self.dataByMode["Settings"])
+            return SettingOperation.writeSettingFile(
+                self.dataByMode["Settings"]
+            )
+        elif self.mode == "Project":
+            if self.parent().settingCoverageCheckbox.isChecked():
+                _g.settings = copy.deepcopy(self.dataByMode["Settings"])
+                return SettingOperation.writeSettingFile(
+                    self.dataByMode["Settings"]
+                )
+            else:
+                return True
+        else:
+            return False
 
-    def setSettings(self):
-        settings = SettingOperation.openSettingFile()["ToolBar"]
+    def setSettings(self, settings: dict):
         for (
             checkBox,
             comboBoxContainArea,
@@ -366,5 +445,5 @@ class ToolBarSettingWindow(QWidget):
             for comboBox, content in zip(comboBoxes, contents):
                 for contentName, contentValue in self.contentPairs:
                     if content == contentValue:
-                        comboBox.setCurrentText(contentName)
+                        comboBox.setCurrentText(contentName)  # type: ignore
                         break

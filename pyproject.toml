@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "soroeditor-qt"
-version = "0.1.0"
+version = "0.2.0"
 description = "SoroEditor - Parallel Text Editor"
 authors = ["joppincal <106348367+joppincal@users.noreply.github.com>"]
 license = "MIT License"
@@ -12,7 +12,7 @@ pyyaml = "^6.0.1"
 pyside6 = "^6.6.1"
 
 [tool.poetry.dev-dependencies]
-black = "^23.12.1"
+black = "^24.3.0"
 flake8 = "^7.0.0"
 mypy = "^1.8.0"
 

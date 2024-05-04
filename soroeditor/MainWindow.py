@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 
@@ -41,10 +42,14 @@ class MainWindow(QMainWindow):
         splash.setWindowFlags(Qt.SplashScreen | Qt.WindowStaysOnTopHint)
         splash.show()
 
-        self.settings = SettingOperation.settingVerification(
+        # _g.settings: 設定ファイルに保存される設定
+        # _g.projectSettings: プロジェクトファイルごとに保存される設定
+        _g.settings = SettingOperation.settingVerification(
             self.openSettingFile()
         )
-        SettingOperation.writeSettingFile(self.settings)
+        _g.settings["Version"] = _g.__version__
+        SettingOperation.writeSettingFile(_g.settings)
+        _g.projectSettings = copy.deepcopy(_g.settings)
 
         self.setWindowTitle("SoroEditor")
         self.setWindowIcon(Icon().Icon)
@@ -52,25 +57,20 @@ class MainWindow(QMainWindow):
         self.makeLayout()
 
         self.currentFilePath = ""
-        self.latestData = {i: {"text": "", "title": ""} for i in range(3)}
-
-        if len(sys.argv) >= 2:
-            if os.path.isfile(sys.argv[1]):
-                sys.argv[1] = os.path.abspath(sys.argv[1]).replace("\\", "/")
-                data = DataOperation.openProjectFile(sys.argv[1])
-                if type(data) is dict:
-                    DataOperation.setTextInTextBoxes(data)
-                    self.currentFilePath = sys.argv[1]
-                    self.latestData = data
+        self.latestData = DataOperation.makeSaveData()
 
         self.timer = QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.loop)
         self.timer.start()
 
-        self.reflectionSettings("Size")
+        self.reflectionSettings("All")
         self.show()
         splash.hide()
+
+        if len(sys.argv) >= 2:
+            sys.argv[1] = os.path.abspath(sys.argv[1]).replace("\\", "/")
+            self.openProjectFile(sys.argv[1])
 
     def makeLayout(self):
         self.makeQActions()
@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
         menu["helpMenu"].addActions(list(_g.qAction["help"].values()))
 
     def makeToolBar(self):
-        toolBarSettings = self.settings["ToolBar"]
+        toolBarSettings = _g.projectSettings["ToolBar"]
         toolButtonsElements = {
             "NewFile": {"actions": [_g.qAction["file"]["NewFile"]]},
             "OpenFile": {"actions": [_g.qAction["file"]["OpenFile"]]},
@@ -161,8 +161,16 @@ class MainWindow(QMainWindow):
                 "actions": None,
             },
             "Clock": {"text": "時計", "icon": None, "actions": None},
-            "CountDown": {"text": "カウントダウン", "icon": None, "actions": None},
-            "StopWatch": {"text": "ストップウォッチ", "icon": None, "actions": None},
+            "CountDown": {
+                "text": "カウントダウン",
+                "icon": None,
+                "actions": None,
+            },
+            "StopWatch": {
+                "text": "ストップウォッチ",
+                "icon": None,
+                "actions": None,
+            },
         }
         toolButtonStyle = "TextBesideIcon"  # temporary
         toolButtonStyle = getattr(
@@ -257,7 +265,8 @@ class MainWindow(QMainWindow):
                 icon=icon.ProjectSetting,
                 text="プロジェクト設定(&F)",
                 parent=self,
-                triggered=print,
+                triggered=self.openSubWindow("ProjectSettingWindow"),
+                shortcut=QKeySequence("Ctrl+Shift+Alt+P"),
             ),
             "Reload": QAction(
                 icon=icon.Refresh,
@@ -385,7 +394,7 @@ class MainWindow(QMainWindow):
                 text="全画面表示(F)",
                 parent=self,
                 triggered=self.toggleFullScreenMode,
-                shortcut=QKeySequence("F11")
+                shortcut=QKeySequence("F11"),
             ),
         }
         _g.qAction["help"] = {
@@ -441,7 +450,6 @@ class MainWindow(QMainWindow):
         else:
             ret = False
         if ret:
-            self.currentFilePath
             self.currentFilePath = filePath
             self.addFileHistory(filePath)
             self.setFileHistoryMenu()
@@ -476,17 +484,24 @@ class MainWindow(QMainWindow):
         if filePath:
             data = DataOperation.openProjectFile(filePath)
             if data:
-                DataOperation.setTextInTextBoxes(data)
+                DataOperation.setTextInTextBoxes(data["data"])
                 self.currentFilePath = filePath
                 self.addFileHistory(filePath)
                 self.setFileHistoryMenu()
-                self.latestData = data
+
+                data["settings"]["Version"] = _g.__version__
+                _g.projectSettings.update(
+                    SettingOperation.settingVerification(data["settings"])
+                )
+                self.reflectionSettings("All")
+
+                self.latestData = DataOperation.makeSaveData()
                 return True
             else:
                 QMessageBox.information(
                     self,
                     "SoroEditor - Infomation",
-                    f"ファイル: {filePath} の開始に失敗しました\nプロジェクトファイルを確認してください"
+                    f"ファイル: {filePath} の開始に失敗しました\nプロジェクトファイルを確認してください",
                 )
                 return False
         return False
@@ -495,9 +510,11 @@ class MainWindow(QMainWindow):
         def inner():
             ret = self.openProjectFile(filePath)
             if not ret:
-                fileHistory = self.settings["FileHistory"]
+                settings = SettingOperation.openSettingFile()
+                fileHistory = settings["FileHistory"]
                 fileHistory.remove(filePath)
-                SettingOperation.writeSettingFile(self.settings)
+                SettingOperation.writeSettingFile(settings)
+                _g.settings["FileHistory"] = fileHistory
                 self.setFileHistoryMenu()
             return ret
 
@@ -515,7 +532,7 @@ class MainWindow(QMainWindow):
                     shortcut=QKeySequence("Ctrl+R") if i == 0 else False,
                 )
                 for i, filePath in enumerate(
-                    list(dict.fromkeys(self.settings["FileHistory"]))[:10]
+                    list(dict.fromkeys(_g.settings["FileHistory"]))[:10]
                 )
             ]
         )
@@ -530,16 +547,21 @@ class MainWindow(QMainWindow):
         )
 
     def addFileHistory(self, filePath: str):
-        fileHistory = self.settings["FileHistory"]
+        settings = SettingOperation.openSettingFile()
+        fileHistory = settings["FileHistory"]
         fileHistory.insert(0, filePath)
-        self.settings["FileHistory"] = list(dict.fromkeys(fileHistory))
-        SettingOperation.writeSettingFile(self.settings)
+        fileHistory = list(dict.fromkeys(fileHistory))
+        settings["FileHistory"] = fileHistory
+        _g.settings["FileHistory"] = fileHistory
+        SettingOperation.writeSettingFile(settings)
 
     def dataChangedAlert(self) -> QMessageBox:
         messageBox = QMessageBox(self)
         messageBox.setIcon(QMessageBox.Icon.Question)
         messageBox.setWindowTitle("SoroEditor - 終了")
-        messageBox.setText("保存されていない変更があります\n閉じる前に保存しますか")
+        messageBox.setText(
+            "保存されていない変更があります\n閉じる前に保存しますか"
+        )
         messageBox.setStandardButtons(
             QMessageBox.StandardButton.Save
             | QMessageBox.StandardButton.Discard
@@ -604,9 +626,35 @@ class MainWindow(QMainWindow):
             SettingOperation.makeNewSettingFile()
         return settings
 
-    def reflectionSettings(self, item):
-        if item in ("Size", "All"):
-            size = self.settings["Size"]
+    def reflectionSettings(self, item: str):
+        """Reflects the settings entered for the item.
+
+        Args:
+            item (str): Size, FontFamily, FontSize, ToolBar, All
+        """
+        settingsMapping = {
+            "Size": self.reflectSize,
+            "FontFamily": self.reflectFontFamily,
+            "FontSize": self.reflectFontSize,
+            "ToolBar": self.reflectToolBar,
+            "All": [
+                self.reflectSize,
+                self.reflectFontFamily,
+                self.reflectFontSize,
+                self.reflectToolBar,
+            ],
+        }
+
+        settingFunctions = settingsMapping.get(item)
+        if settingFunctions is not None:
+            if not isinstance(settingFunctions, list):
+                settingFunctions = [settingFunctions]
+            for function in settingFunctions:
+                function()
+
+    def reflectSize(self):
+        size = _g.projectSettings.get("Size")
+        if size:
             if type(size) is list:
                 self.resize(*size)
             else:
@@ -616,29 +664,30 @@ class MainWindow(QMainWindow):
                 self.showMaximized()
                 if size == "FullScreen":
                     self.toggleFullScreenMode()
-
-            if size not in ("Maximize", "FullScreen"):
+            else:
                 self.moveWindowToCenter()
 
-        if item in ("FontFamily", "Font", "All"):
-            fontFamily = self.settings["Font"]
+    def reflectFontFamily(self):
+        fontFamily = _g.projectSettings.get("Font")
+        if fontFamily:
             _g.textEditor.setFont(QFont(fontFamily))
 
-        if item in ("FontSize", "Font", "All"):
-            fontSize = self.settings["FontSize"]
+    def reflectFontSize(self):
+        fontSize = _g.projectSettings.get("FontSize")
+        if fontSize:
             _g.textEditor.setFont(
                 QFont(_g.textEditor.font().family(), fontSize)
             )
 
-        if item in ("ToolBar", "All"):
-            for toolBar in _g.toolBars:
-                self.removeToolBar(toolBar)
-            self.makeToolBar()
+    def reflectToolBar(self):
+        for toolBar in _g.toolBars:
+            self.removeToolBar(toolBar)
+        self.makeToolBar()
 
     def toggleFullScreenMode(self):
         if self.isFullScreen():
             self.showNormal()
-            if self.settings["Size"] == "FullScreen":
+            if _g.projectSettings["Size"] == "FullScreen":
                 self.resize(*SettingOperation.defaultSettingData()["Size"])
                 self.moveWindowToCenter()
             else:
@@ -668,25 +717,31 @@ class MainWindow(QMainWindow):
                 return event.ignore()
         return super().closeEvent(event)
 
-    def openSubWindow(self, type_: QWidget):
+    def openSubWindow(self, type_: str):
         self.subWindows = {
-            "ThirdPartyNoticesWindow": None,
             "AboutWindow": None,
+            "ProjectSettingWindow": None,
             "SettingWindow": None,
+            "ThirdPartyNoticesWindow": None,
         }
 
-        subWindow: type[ThirdPartyNoticesWindow | AboutWindow | SettingWindow]
-        if type_ == "ThirdPartyNoticesWindow":
-            subWindow = ThirdPartyNoticesWindow
-        elif type_ == "AboutWindow":
+        subWindow: type[AboutWindow | SettingWindow | ThirdPartyNoticesWindow]
+        mode = []
+        if type_ == "AboutWindow":
             subWindow = AboutWindow
+        elif type_ == "ProjectSettingWindow":
+            subWindow = SettingWindow
+            mode = ["Project"]
         elif type_ == "SettingWindow":
             subWindow = SettingWindow
+            mode = ["Default"]
+        elif type_ == "ThirdPartyNoticesWindow":
+            subWindow = ThirdPartyNoticesWindow
         else:
             return
 
         def inner():
-            self.subWindows[type_] = subWindow(self)
+            self.subWindows[type_] = subWindow(self, *mode)
             self.subWindows[type_].show()
 
         return inner

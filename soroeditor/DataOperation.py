@@ -43,7 +43,12 @@ def makeSaveData() -> dict:
         if type(text) is str:
             data[i]["text"] = text.rstrip("\r\n")
         data[i]["title"] = title
-    return data
+    settings = {
+        key: value
+        for key, value in __g.projectSettings.items()
+        if key != "FileHistory"
+    }
+    return {"data": data, "settings": settings}
 
 
 def makeDataToYaml(data: dict) -> str:
