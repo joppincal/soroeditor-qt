@@ -1,3 +1,4 @@
+import copy
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QFontDatabase
@@ -28,14 +29,6 @@ class SettingWindow(QWidget):
         self.mode = mode
         self.dataByMode: dict = {}
         if mode == "Default":
-            self.saveSuccessMessage = (
-                "SoroEditor - Infomation",
-                "設定を保存しました",
-            )
-            self.saveFailedMessage = (
-                "SoroEditor - Error",
-                "設定の保存に失敗しました",
-            )
             self.dataByMode["Settings"] = _g.settings
             self.dataByMode["WindowTitle"] = "デフォルト設定"
             self.dataByMode["SaveSuccessMessage"] = (
@@ -47,14 +40,6 @@ class SettingWindow(QWidget):
                 "設定の保存に失敗しました",
             )
         elif mode == "Project":
-            self.saveSuccessMessage = (
-                "SoroEditor - Infomation",
-                "プロジェクト設定はプロジェクトファイルの保存時に保存されます",
-            )
-            self.saveFailedMessage = (
-                "SoroEditor - Error",
-                "設定の保存に失敗しました",
-            )
             self.dataByMode["Settings"] = _g.projectSettings
             self.dataByMode["WindowTitle"] = "プロジェクト設定"
             self.dataByMode["SaveSuccessMessage"] = (
@@ -118,29 +103,46 @@ class SettingWindow(QWidget):
         buttonForToolBarSetting.clicked.connect(self.buttonClicked)
 
         self.widgetsForVBox2 = [buttonForToolBarSetting]
-        self.addWidgetsFor(vBox2, self.widgetsForVBox2)
+        vBox2.addWidget(buttonForToolBarSetting)
         vBox2.addStretch(1)
+        # vBox2.addStretch(1)
 
         # ボトムバー
-        self.bottomBar = QDialogButtonBox()
-        self.bottomBar.setStandardButtons(
-            self.bottomBar.StandardButton.Save
-            | self.bottomBar.StandardButton.Cancel
+        bottomBarBox = QHBoxLayout()
+        self.dialogButtonBox = QDialogButtonBox()
+        self.dialogButtonBox.setStandardButtons(
+            self.dialogButtonBox.StandardButton.Save
+            | self.dialogButtonBox.StandardButton.Cancel
         )
-        self.bottomBar.button(self.bottomBar.StandardButton.Save).setText(
-            "保存(&S)"
-        )
-        self.bottomBar.button(self.bottomBar.StandardButton.Cancel).setText(
-            "終了(&C)"
-        )
-        for button in self.bottomBar.buttons():
+        self.dialogButtonBox.button(
+            self.dialogButtonBox.StandardButton.Save
+        ).setText("保存(&S)")
+        self.dialogButtonBox.button(
+            self.dialogButtonBox.StandardButton.Cancel
+        ).setText("終了(&C)")
+        for button in self.dialogButtonBox.buttons():
             button.clicked.connect(self.buttonClicked)
-        vBox.addWidget(self.bottomBar, alignment=Qt.AlignmentFlag.AlignBottom)
+        # 設定適用範囲設定チェックボックス
+        if self.mode == "Default":
+            checkBoxText = "現在"
+        elif self.mode == "Project":
+            checkBoxText = "次回以降"
+        self.settingCoverageCheckbox = QCheckBox(
+            "変更内容を" + checkBoxText + "のプロジェクトにも反映する"
+        )
+        # bottomBarBoxにウィジェットを追加
+        bottomBarBox.addStretch(1)
+        bottomBarBox.addWidget(self.settingCoverageCheckbox)
+        bottomBarBox.addWidget(self.dialogButtonBox)
+
+        vBox.addLayout(bottomBarBox)
 
     @QtCore.Slot()
     def buttonClicked(self):
         button = self.sender()
-        if button == self.bottomBar.button(self.bottomBar.StandardButton.Save):
+        if button == self.dialogButtonBox.button(
+            self.dialogButtonBox.StandardButton.Save
+        ):
             if self.saveSetting():
                 QMessageBox.information(
                     self, *self.dataByMode["SaveSuccessMessage"]
@@ -150,8 +152,8 @@ class SettingWindow(QWidget):
                 QMessageBox.warning(
                     self, *self.dataByMode["SaveFailedMessage"]
                 )
-        if button == self.bottomBar.button(
-            self.bottomBar.StandardButton.Cancel
+        if button == self.dialogButtonBox.button(
+            self.dialogButtonBox.StandardButton.Cancel
         ):
             self.close()
         if button.objectName() == "buttonForToolBarSetting":
@@ -185,11 +187,19 @@ class SettingWindow(QWidget):
         self.parent().reflectionSettings("All")  # type: ignore
 
         if self.mode == "Default":
+            if self.settingCoverageCheckbox.isChecked():
+                _g.projectSettings = copy.deepcopy(self.dataByMode["Settings"])
             return SettingOperation.writeSettingFile(
                 self.dataByMode["Settings"]
             )
         elif self.mode == "Project":
-            return True
+            if self.settingCoverageCheckbox.isChecked():
+                _g.settings = copy.deepcopy(self.dataByMode["Settings"])
+                return SettingOperation.writeSettingFile(
+                    self.dataByMode["Settings"]
+                )
+            else:
+                return True
         else:
             return False
 
@@ -231,9 +241,7 @@ class ToolBarSettingWindow(QWidget):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.resize(1000, 500)
-        self.setWindowTitle(
-            self.parent().windowTitle() + "/ツールバー"  # type: ignore
-        )
+        self.setWindowTitle(self.parent().windowTitle() + "/ツールバー")  # type: ignore # noqa: E501
         self.mode = self.parent().mode  # type: ignore
         self.dataByMode = self.parent().dataByMode  # type: ignore
 
@@ -390,11 +398,19 @@ class ToolBarSettingWindow(QWidget):
         self.parent().parent().reflectionSettings("All")  # type: ignore
 
         if self.mode == "Default":
+            if self.parent().settingCoverageCheckbox.isChecked():
+                _g.projectSettings = copy.deepcopy(self.dataByMode["Settings"])
             return SettingOperation.writeSettingFile(
                 self.dataByMode["Settings"]
             )
         elif self.mode == "Project":
-            return True
+            if self.parent().settingCoverageCheckbox.isChecked():
+                _g.settings = copy.deepcopy(self.dataByMode["Settings"])
+                return SettingOperation.writeSettingFile(
+                    self.dataByMode["Settings"]
+                )
+            else:
+                return True
         else:
             return False
 

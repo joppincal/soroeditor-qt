@@ -725,11 +725,7 @@ class MainWindow(QMainWindow):
             "ThirdPartyNoticesWindow": None,
         }
 
-        subWindow: type[
-            AboutWindow
-            | SettingWindow
-            | ThirdPartyNoticesWindow
-        ]
+        subWindow: type[AboutWindow | SettingWindow | ThirdPartyNoticesWindow]
         mode = []
         if type_ == "AboutWindow":
             subWindow = AboutWindow
