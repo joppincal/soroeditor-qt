@@ -1,4 +1,5 @@
 import copy
+
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QFontDatabase
@@ -78,7 +79,8 @@ class SettingWindow(QWidget):
             [str(i) for i in list(range(1, 101)).__reversed__()]
         )
         fontSizeComboBox.setEditable(True)
-        fontSizeComboBox.findChild(QLineEdit).setTextMargins(-9, 0, 0, 0)
+        if fontSizeComboBox.findChild(QLineEdit).style().name() == "windows11":
+            fontSizeComboBox.findChild(QLineEdit).setTextMargins(-9, 0, 0, 0)
         # ウィンドウサイズ
         windowSizeComboBox = QComboBox()
         windowSizeComboBox.addItems(

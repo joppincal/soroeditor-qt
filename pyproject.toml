@@ -10,6 +10,7 @@ readme = "README.md"
 python = "^3.11, <3.13"
 pyyaml = "^6.0.1"
 pyside6 = "^6.7.0"
+darkdetect = "^0.8.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.3.0"

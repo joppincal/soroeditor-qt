@@ -1,6 +1,5 @@
-from PySide6.QtGui import QPixmap
-
 from darkdetect import isDark
+from PySide6.QtGui import QPixmap
 
 
 class Icon:
