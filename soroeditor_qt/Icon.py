@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from darkdetect import isDark
 from PySide6.QtGui import QPixmap
 
@@ -9,7 +11,7 @@ class Icon:
             color = "white"
         else:
             color = "black"
-        directory = "soroeditor_qt/src/icon/"
+        directory = Path(__file__).parent / "src" / "icon"
         self.Icon = QPixmap(f"{directory}/Icon.svg")
         self.Balance = QPixmap(f"{directory}/{color}/Balance.svg")
         self.Bookmark = QPixmap(f"{directory}/{color}/Bookmark.svg")
