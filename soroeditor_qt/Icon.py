@@ -9,7 +9,7 @@ class Icon:
             color = "white"
         else:
             color = "black"
-        directory = "soroeditor/src/icon/"
+        directory = "soroeditor_qt/src/icon/"
         self.Icon = QPixmap(f"{directory}/Icon.svg")
         self.Balance = QPixmap(f"{directory}/{color}/Balance.svg")
         self.Bookmark = QPixmap(f"{directory}/{color}/Bookmark.svg")
