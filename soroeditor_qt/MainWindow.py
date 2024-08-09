@@ -682,7 +682,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
     def reflectResizable(self):
         resizable = _g.projectSettings.get("Resizable")
         if resizable:
-            self.setFixedSize(0xffffff, 0xffffff)
+            self.setFixedSize(0xFFFFFF, 0xFFFFFF)
         else:
             self.setFixedSize(self.size())
 
