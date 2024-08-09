@@ -9,7 +9,7 @@ from PySide6.QtGui import (
     QAction,
     QCloseEvent,
     QFocusEvent,
-    QFont,
+    QGuiApplication,
     QKeySequence,
     QPixmap,
     QTextCursor,
@@ -394,12 +394,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 triggered=self.openSubWindow("SettingWindow"),
                 shortcut=QKeySequence("Ctrl+Shift+P"),
             ),
-            "ProjectSetting": QAction(
-                icon=icon.ProjectSetting,
-                text="プロジェクト設定(&F)",
-                parent=self,
-                triggered=print,
-            ),
+            "ProjectSetting": _g.qAction["file"]["ProjectSetting"],
             "FullScreen": QAction(
                 icon=icon.FullScreen,
                 text="全画面表示(F)",
@@ -645,11 +640,13 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         """
         settingsMapping = {
             "Size": self.reflectSize,
+            "Resizable": self.reflectResizable,
             "FontFamily": self.reflectFontFamily,
             "FontSize": self.reflectFontSize,
             "ToolBar": self.reflectToolBar,
             "All": [
                 self.reflectSize,
+                self.reflectResizable,
                 self.reflectFontFamily,
                 self.reflectFontSize,
                 self.reflectToolBar,
@@ -665,11 +662,15 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
 
     def reflectSize(self):
         size = _g.projectSettings.get("Size")
+        ratio = QGuiApplication.primaryScreen().devicePixelRatio()
+        screenSize = QGuiApplication.primaryScreen().size().toTuple()
         if size:
             if type(size) is list:
-                self.resize(*size)
+                self.resize(*[int(lengh / ratio) for lengh in size])
             else:
-                self.resize(*SettingOperation.defaultSettingData()["Size"])
+                self.resize(
+                    *[int(lengh / ratio * 0.6) for lengh in screenSize]
+                )
 
             if size in ("Maximize", "FullScreen"):
                 self.showMaximized()
@@ -678,17 +679,28 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
             else:
                 self.moveWindowToCenter()
 
+    def reflectResizable(self):
+        resizable = _g.projectSettings.get("Resizable")
+        if resizable:
+            self.setFixedSize(0xffffff, 0xffffff)
+        else:
+            self.setFixedSize(self.size())
+
     def reflectFontFamily(self):
         fontFamily = _g.projectSettings.get("Font")
+        fontStyle = _g.projectSettings.get("FontStyle")
         if fontFamily:
-            _g.textEditor.setFont(QFont(fontFamily))
+            font = _g.textEditor.font()
+            font.setFamily(fontFamily)
+            font.setStyleName(fontStyle)
+            _g.textEditor.setFont(font)
 
     def reflectFontSize(self):
         fontSize = _g.projectSettings.get("FontSize")
         if fontSize:
-            _g.textEditor.setFont(
-                QFont(_g.textEditor.font().family(), fontSize)
-            )
+            font = _g.textEditor.font()
+            font.setPointSize(fontSize)
+            _g.textEditor.setFont(font)
 
     def reflectToolBar(self):
         for toolBar in _g.toolBars:
@@ -924,4 +936,4 @@ class LineEdit(QLineEdit):
 
     def focusInEvent(self, event: QFocusEvent) -> None:
         super().focusInEvent(event)
-        self.focusReceived.emit()
+        self.focusReceived

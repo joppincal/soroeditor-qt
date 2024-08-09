@@ -11,8 +11,10 @@ __PATH = "./setting.yaml"
 
 __DEFAULTSETTINGDATA = {
     "FileHistory": [],
-    "Font": "MS UI Gothic",
-    "FontSize": 11,
+    "Font": "",
+    "FontSize": 0,
+    "FontStyle": "",
+    "Resizable": False,
     "Size": [800, 600],
     "ToolBar": {
         1: {
@@ -68,7 +70,9 @@ def makeNewSettingFile() -> bool:
 
 def settingVerification(dic: dict) -> dict:
     size = dic.get("Size", None)
+    resizable = dic.get("Resizable", None)
     font = dic.get("Font", None)
+    fontStyle = dic.get("FontStyle", None)
     fontSize = dic.get("FontSize", None)
     fileHistory = dic.get("FileHistory", None)
     toolBar = dic.get("ToolBar", None)
@@ -86,12 +90,22 @@ def settingVerification(dic: dict) -> dict:
     else:
         dic["Size"] = default["Size"]
 
+    if isinstance(resizable, bool):
+        pass
+    else:
+        dic["Resizable"] = default["Resizable"]
+
     if font in QFontDatabase.families(QFontDatabase.WritingSystem.Any):
         pass
     else:
         dic["Font"] = default["Font"]
 
-    if type(fontSize) is int and fontSize > 0:
+    if fontStyle in QFontDatabase.styles(font):
+        pass
+    else:
+        dic["FontStyle"] = default["FontStyle"]
+
+    if type(fontSize) is int and fontSize >= 0:
         pass
     else:
         dic["FontSize"] = default["FontSize"]

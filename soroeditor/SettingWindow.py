@@ -2,7 +2,7 @@ import copy
 
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -52,6 +52,7 @@ class SettingWindow(QWidget):
                 "設定の保存に失敗しました",
             )
         self.resize(600, 500)
+        self.setFont(QFont(self.font().family(), 10))
         self.setWindowFlags(Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.setWindowTitle("SoroEditor - " + self.dataByMode["WindowTitle"])
@@ -72,31 +73,65 @@ class SettingWindow(QWidget):
         # フォント
         # ファミリ
         fontComboBox = QFontComboBox()
-        fontComboBox.setEditable(False)
+        fontComboBox.setEditable(True)
+        fontComboBox.setMaxCount(fontComboBox.count())
+        # スタイル
+        fontStyleComboBox = QComboBox()
+        fontStyleComboBox.setEditable(True)
         # フォントサイズ
         fontSizeComboBox = QComboBox()
         fontSizeComboBox.addItems(
             [str(i) for i in list(range(1, 101)).__reversed__()]
         )
         fontSizeComboBox.setEditable(True)
-        if fontSizeComboBox.findChild(QLineEdit).style().name() == "windows11":
-            fontSizeComboBox.findChild(QLineEdit).setTextMargins(-9, 0, 0, 0)
+        if self.style().name() == "windows11":
+            for lineEdit in {
+                comboBox.findChild(QLineEdit)
+                for comboBox in {
+                    fontComboBox,
+                    fontStyleComboBox,
+                    fontSizeComboBox,
+                }
+            }:
+                lineEdit.setTextMargins(-9, 0, 0, 0)
         # ウィンドウサイズ
+        screens = QGuiApplication.screens()
+        sizeCandidate = []
+        for screen in screens:
+            ratio = screen.devicePixelRatio()
+            size = [
+                length * ratio
+                for length in [screen.size().width(), screen.size().height()]
+            ]
+            sizeCandidate.extend(
+                [
+                    f"{int(size[0] * li[0])}*{int(size[1] * li[1])}"
+                    for li in [[0.8, 0.8], [0.8, 0.6], [0.6, 0.6], [0.5, 0.5]]
+                ]
+            )
         windowSizeComboBox = QComboBox()
-        windowSizeComboBox.addItems(
-            ["800*600", "1200*600", "1200*800", "Maximize", "FullScreen"]
-        )
+        windowSizeComboBox.addItems(sizeCandidate + ["Maximize", "FullScreen"])
+        # リサイズ可能チェックボックス
+        resizeableCheckbox = QCheckBox("手動でのリサイズを許可")
         # vBox1へウィジェットを追加
         self.widgetsForVBox1 = [
             QLabel("フォントファミリ"),
             fontComboBox,
+            QLabel("フォントスタイル"),
+            fontStyleComboBox,
             QLabel("フォントサイズ"),
             fontSizeComboBox,
             QLabel("ウィンドウサイズ"),
             windowSizeComboBox,
+            resizeableCheckbox,
         ]
         self.addWidgetsFor(vBox1, self.widgetsForVBox1)
         vBox1.addStretch(1)
+
+        # スロットを紐付け
+        fontComboBox.currentIndexChanged.connect(self.setFontStyleNames)
+        fontComboBox.currentIndexChanged.connect(self.setComboBoxFont)
+        fontStyleComboBox.currentIndexChanged.connect(self.setComboBoxFont)
 
         # vBox2: 右側
         # ツールバー・ステータスバー
@@ -126,11 +161,13 @@ class SettingWindow(QWidget):
         for button in self.dialogButtonBox.buttons():
             button.clicked.connect(self.buttonClicked)
         # 設定適用範囲設定チェックボックス
+        self.settingCoverageCheckbox = QCheckBox()
         if self.mode == "Default":
             checkBoxText = "現在"
+            self.settingCoverageCheckbox.setChecked(True)
         elif self.mode == "Project":
             checkBoxText = "次回以降"
-        self.settingCoverageCheckbox = QCheckBox(
+        self.settingCoverageCheckbox.setText(
             "変更内容を" + checkBoxText + "のプロジェクトにも反映する"
         )
         # bottomBarBoxにウィジェットを追加
@@ -139,6 +176,8 @@ class SettingWindow(QWidget):
         bottomBarBox.addWidget(self.dialogButtonBox)
 
         vBox.addLayout(bottomBarBox)
+
+        self.setFixedSize(self.size())
 
     @QtCore.Slot()
     def buttonClicked(self):
@@ -162,18 +201,48 @@ class SettingWindow(QWidget):
         if button.objectName() == "buttonForToolBarSetting":
             ToolBarSettingWindow(self)
 
+    @QtCore.Slot()
+    def setFontStyleNames(self):
+        family = self.widgetsForVBox1[1].currentText()
+        font = QFont(family)
+        fontStyleNames = QFontDatabase.styles(family)
+        comboBox = self.widgetsForVBox1[3]
+
+        comboBox.clear()
+        comboBox.setMaxCount(len(fontStyleNames))
+        comboBox.addItems(fontStyleNames)
+
+        for i, styleName in enumerate(fontStyleNames):
+            font.setStyleName(styleName)
+            comboBox.setItemData(i, font, Qt.FontRole)
+
+    @QtCore.Slot()
+    def setComboBoxFont(self):
+        family = self.widgetsForVBox1[1].currentText()
+        styleName = self.widgetsForVBox1[3].currentText()
+
+        font = QFont(family)
+        styledFont = QFont(font)
+        styledFont.setStyleName(styleName)
+
+        self.widgetsForVBox1[1].setFont(font)
+        self.widgetsForVBox1[3].setFont(styledFont)
+
     def saveSetting(self) -> bool:
         self.dataByMode["Settings"]["Font"] = self.widgetsForVBox1[
             1
         ].currentText()
-        fontSize = self.widgetsForVBox1[3].currentText()
+        self.dataByMode["Settings"]["FontStyle"] = self.widgetsForVBox1[
+            3
+        ].currentText()
+        fontSize = self.widgetsForVBox1[5].currentText()
         try:
             fontSize = int(fontSize)
         except ValueError:
             fontSize = None
         self.dataByMode["Settings"]["FontSize"] = fontSize
 
-        size = self.widgetsForVBox1[5].currentText()
+        size = self.widgetsForVBox1[7].currentText()
         if "*" in size:
             size = size.split("*")
             try:
@@ -184,27 +253,33 @@ class SettingWindow(QWidget):
             size = None
         self.dataByMode["Settings"]["Size"] = size
 
+        resizable = self.widgetsForVBox1[8].isChecked()
+        self.dataByMode["Settings"]["Resizable"] = resizable
+
         self.dataByMode["Settings"] = SettingOperation.settingVerification(
             self.dataByMode["Settings"]
         )
-        self.parent().reflectionSettings("All")  # type: ignore
 
         if self.mode == "Default":
             if self.settingCoverageCheckbox.isChecked():
                 _g.projectSettings = copy.deepcopy(self.dataByMode["Settings"])
-            return SettingOperation.writeSettingFile(
+            ret = SettingOperation.writeSettingFile(
                 self.dataByMode["Settings"]
             )
         elif self.mode == "Project":
             if self.settingCoverageCheckbox.isChecked():
                 _g.settings = copy.deepcopy(self.dataByMode["Settings"])
-                return SettingOperation.writeSettingFile(
+                ret = SettingOperation.writeSettingFile(
                     self.dataByMode["Settings"]
                 )
             else:
-                return True
+                ret = True
         else:
-            return False
+            ret = False
+
+        self.parent().reflectionSettings("All")  # type: ignore
+
+        return ret
 
     def addWidgetsFor(
         self, layout: QHBoxLayout | QVBoxLayout, widgets: list[QWidget]
@@ -220,11 +295,18 @@ class SettingWindow(QWidget):
             font = QFont().defaultFamily()
         self.widgetsForVBox1[1].setCurrentFont(font)
 
+        fontStyle = settings.get("FontStyle", default["FontStyle"])
+        if fontStyle not in QFontDatabase.styles(font):
+            fontStyle = QFontDatabase.styles(font)[0]
+        self.widgetsForVBox1[3].setCurrentIndex(
+            QFontDatabase.styles(font).index(fontStyle)
+        )
+
         fontSize = settings.get("FontSize", default["FontSize"])
         if type(fontSize) is not int:
             fontSize = default["FontSize"]
-        self.widgetsForVBox1[3].setCurrentIndex(
-            self.widgetsForVBox1[3].count() - fontSize
+        self.widgetsForVBox1[5].setCurrentIndex(
+            self.widgetsForVBox1[5].count() - fontSize
         )
 
         windowSize = settings.get("Size", default["Size"])
@@ -235,9 +317,16 @@ class SettingWindow(QWidget):
         else:
             windowSize = default["Size"]
         for _ in range(2):
-            self.widgetsForVBox1[5].insertSeparator(0)
-        self.widgetsForVBox1[5].insertItem(0, windowSize)
-        self.widgetsForVBox1[5].setCurrentIndex(0)
+            self.widgetsForVBox1[7].insertSeparator(0)
+        self.widgetsForVBox1[7].insertItem(0, windowSize)
+        self.widgetsForVBox1[7].setCurrentIndex(0)
+
+        resizable = settings.get("Resizable", default["Resizable"])
+        if isinstance(resizable, bool):
+            pass
+        else:
+            resizable = default["Resizable"]
+        self.widgetsForVBox1[8].setChecked(resizable)
 
 
 class ToolBarSettingWindow(QWidget):
