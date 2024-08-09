@@ -17,8 +17,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from soroeditor import SettingOperation
-from soroeditor import __global__ as _g
+from soroeditor_qt import SettingOperation
+from soroeditor_qt import __global__ as _g
 
 
 class SettingWindow(QWidget):

@@ -3,9 +3,9 @@ import copy
 import yaml as __y
 from PySide6.QtGui import QFontDatabase
 
-from soroeditor import DataOperation as __d
-from soroeditor import FileOperation as __f
-from soroeditor import __global__ as __g
+from soroeditor_qt import DataOperation as __d
+from soroeditor_qt import FileOperation as __f
+from soroeditor_qt import __global__ as __g
 
 __PATH = "./setting.yaml"
 

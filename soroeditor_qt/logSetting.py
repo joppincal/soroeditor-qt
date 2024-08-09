@@ -1,7 +1,7 @@
 import os
 from logging import DEBUG, Formatter, getLogger, handlers
 
-from soroeditor import __global__ as __g
+from soroeditor_qt import __global__ as __g
 
 
 def logSetting():

@@ -1,7 +1,7 @@
 import yaml as __y
 
-from soroeditor import FileOperation
-from soroeditor import __global__ as __g
+from soroeditor_qt import FileOperation
+from soroeditor_qt import __global__ as __g
 
 
 def getCurrentText(i: int) -> str | None:

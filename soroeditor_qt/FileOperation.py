@@ -1,4 +1,4 @@
-from soroeditor import __global__ as __g
+from soroeditor_qt import __global__ as __g
 
 
 def writeToFile(data: str, filePath: str) -> bool:

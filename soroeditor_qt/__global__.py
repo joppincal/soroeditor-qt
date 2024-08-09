@@ -2,7 +2,7 @@ from logging import Logger
 
 from PySide6.QtWidgets import QToolBar
 
-from soroeditor.MainWindow import LineEdit, PlainTextEdit, TextEditor
+from soroeditor_qt.MainWindow import LineEdit, PlainTextEdit, TextEditor
 
 __version__ = "0.2.0"
 

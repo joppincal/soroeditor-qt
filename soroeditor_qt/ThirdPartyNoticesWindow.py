@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from soroeditor import FileOperation
+from soroeditor_qt import FileOperation
 
 
 class ThirdPartyNoticesWindow(QWidget):

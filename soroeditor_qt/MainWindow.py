@@ -26,12 +26,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from soroeditor import DataOperation, SettingOperation
-from soroeditor import __global__ as _g
-from soroeditor.AboutWindow import AboutWindow
-from soroeditor.Icon import Icon
-from soroeditor.SettingWindow import SettingWindow
-from soroeditor.ThirdPartyNoticesWindow import ThirdPartyNoticesWindow
+from soroeditor_qt import DataOperation, SettingOperation
+from soroeditor_qt import __global__ as _g
+from soroeditor_qt.AboutWindow import AboutWindow
+from soroeditor_qt.Icon import Icon
+from soroeditor_qt.SettingWindow import SettingWindow
+from soroeditor_qt.ThirdPartyNoticesWindow import ThirdPartyNoticesWindow
 
 
 class MainWindow(QMainWindow):

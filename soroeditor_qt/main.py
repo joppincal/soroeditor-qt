@@ -3,9 +3,9 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-from soroeditor import __global__ as __g
-from soroeditor.logSetting import logSetting
-from soroeditor.MainWindow import MainWindow
+from soroeditor_qt import __global__ as __g
+from soroeditor_qt.logSetting import logSetting
+from soroeditor_qt.MainWindow import MainWindow
 
 
 def main():
