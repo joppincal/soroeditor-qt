@@ -2,7 +2,7 @@
 
 # SoroEditor - 並列同期テキストエディタ
 
-![splash](soroeditor/src/splash.png)
+![splash](soroeditor_qt/src/splash.png)
 
 SoroEditorは並列同期テキストエディタです。
 
