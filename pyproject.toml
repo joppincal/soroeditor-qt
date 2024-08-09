@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "soroeditor-qt"
-version = "0.3.1"
+version = "0.3.2"
 description = "SoroEditor - Parallel Text Editor"
 authors = ["joppincal <106348367+joppincal@users.noreply.github.com>"]
 license = "MIT License"
