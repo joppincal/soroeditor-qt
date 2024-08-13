@@ -1,5 +1,6 @@
 import copy
 import os
+import re
 import sys
 
 from darkdetect import isDark
@@ -7,11 +8,14 @@ from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import (
     QAction,
+    QColor,
     QCloseEvent,
     QFocusEvent,
     QGuiApplication,
     QKeySequence,
+    QPalette,
     QPixmap,
+    QTextCharFormat,
     QTextCursor,
 )
 from PySide6.QtWidgets import (
@@ -26,12 +30,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from soroeditor_qt import DataOperation, SettingOperation
-from soroeditor_qt import __global__ as _g
-from soroeditor_qt.AboutWindow import AboutWindow
-from soroeditor_qt.Icon import Icon
-from soroeditor_qt.SettingWindow import SettingWindow
-from soroeditor_qt.ThirdPartyNoticesWindow import ThirdPartyNoticesWindow
+from . import DataOperation, SettingOperation
+from . import __global__ as _g
+from .AboutWindow import AboutWindow
+from .Icon import Icon
+from .SearchOperation import Match
+from .SearchWindow import SearchWindow
+from .SettingWindow import SettingWindow
+from .ThirdPartyNoticesWindow import ThirdPartyNoticesWindow
 
 
 class MainWindow(QMainWindow):
@@ -357,14 +363,14 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 icon=icon.Search,
                 text="検索(&S)",
                 parent=self,
-                triggered=print,
+                triggered=self.openSubWindow("SearchWindow"),
                 shortcut=QKeySequence("Ctrl+F"),
             ),
             "Replace": QAction(
                 icon=icon.Replace,
                 text="置換(&R)",
                 parent=self,
-                triggered=print,
+                triggered=self.openSubWindow("ReplaceWindow"),
                 shortcut=QKeySequence("Ctrl+Shift+F"),
             ),
         }
@@ -615,6 +621,26 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         else:
             return
 
+    def search(self, pattern, regex):
+        return [textEdit.search(pattern, regex) for textEdit in _g.textEdits]
+
+    def replace(self, match: Match, repl: str):
+        textEdit = _g.textEdits[match.box]
+        textEdit.replace(match, repl)
+
+    def replaceAll(self, matches: list[Match], repl: str, box: int):
+        _g.textEdits[box].replaceAll(matches, repl)
+
+    def highlightMatches(self, matches: list[Match], box: int):
+        _g.textEdits[box].highlightMatches(matches)
+
+    def focus(self, match: Match):
+        for textEdit in _g.textEdits:
+            cursor = textEdit.textCursor()
+            cursor.clearSelection()
+            textEdit.setTextCursor(cursor)
+        _g.textEdits[match.box].focus(match)
+
     def loop(self):
         title = "SoroEditor - "
         if self.currentFilePath:
@@ -744,14 +770,27 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         self.subWindows = {
             "AboutWindow": None,
             "ProjectSettingWindow": None,
+            "SearchWindow": None,
             "SettingWindow": None,
             "ThirdPartyNoticesWindow": None,
         }
 
-        subWindow: type[AboutWindow | SettingWindow | ThirdPartyNoticesWindow]
+        subWindow: type[
+            AboutWindow
+            | SearchWindow
+            | SettingWindow
+            | ThirdPartyNoticesWindow
+        ]
         mode = []
         if type_ == "AboutWindow":
             subWindow = AboutWindow
+        elif type_ == "SearchWindow":
+            subWindow = SearchWindow
+            mode = ["Search"]
+        elif type_ == "ReplaceWindow":
+            type_ = "SearchWindow"
+            subWindow = SearchWindow
+            mode = ["Replace"]
         elif type_ == "ProjectSettingWindow":
             subWindow = SettingWindow
             mode = ["Project"]
@@ -764,8 +803,14 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
             return
 
         def inner():
-            self.subWindows[type_] = subWindow(self, *mode)
-            self.subWindows[type_].show()
+            if self.subWindows[type_] is None:
+                self.subWindows[type_] = subWindow(self, *mode)
+                self.subWindows[type_].show()
+            else:
+                if self.subWindows[type_].isHidden():
+                    self.subWindows[type_].show()
+                self.subWindows[type_].activateWindow()
+                self.subWindows[type_].raise_()
 
         return inner
 
@@ -788,6 +833,23 @@ class TextEditor(QWidget):
             textEdit.setVerticalScrollBarPolicy(
                 Qt.ScrollBarPolicy.ScrollBarAlwaysOff
             )
+
+            palette = textEdit.palette()
+            # 非アクティブ状態（フォーカスがない場合）の選択色
+            palette.setColor(
+                QPalette.Inactive, QPalette.Highlight, QColor("blue")
+            )
+            textColor = palette.color(
+                QPalette.Active, QPalette.HighlightedText
+            )
+            reversedTextColor = QColor.fromRgb(
+                textColor.red(), textColor.green(), textColor.blue()
+            )
+            palette.setColor(
+                QPalette.Inactive, QPalette.HighlightedText, reversedTextColor
+            )
+            textEdit.setPalette(palette)
+
             textEdit.cursorPositionChanged.connect(self.cursorPositionChanged)
             textEdit.focusReceived.connect(self.focusReceived)
             textEdit.setTabChangesFocus(True)
@@ -929,6 +991,91 @@ class PlainTextEdit(QPlainTextEdit):
             newCursor = textEdit.cursorForPosition(rect.topLeft())
             textEdit.setTextCursor(newCursor)
         return super().focusNextPrevChild(next)
+
+    def boxNumber(self):
+        return _g.textEdits.index(self)
+
+    def replace(self, match: Match, repl: str):
+        document = self.document()
+        cursor = QTextCursor(document)
+        cursor.setPosition(match.start)
+        cursor.setPosition(match.end, QTextCursor.MoveMode.KeepAnchor)
+        cursor.insertText(repl)
+
+    def replaceAll(self, matches: list[Match], repl: str):
+        document = self.document()
+        cursors: list[QTextCursor] = []
+        for match in matches:
+            cursor = QTextCursor(document)
+            cursor.setPosition(match.start)
+            cursor.setPosition(match.end, QTextCursor.MoveMode.KeepAnchor)
+            cursors.append(cursor)
+
+        for cursor in cursors:
+            cursor.insertText(repl)
+
+    def findMatches(self, string, pattern, regex):
+        box = self.boxNumber()
+        matches = []
+        if regex:
+            try:
+                pattern = re.compile(pattern)
+                for match in pattern.finditer(string):
+                    matches.append(
+                        Match(match.start(), match.end(), match.group(), box)
+                    )
+            except re.error:
+                print("Invalid regex pattern")
+        else:
+            start = 0
+            while True:
+                index = string.find(pattern, start)
+                if index == -1:
+                    break
+                matches.append(
+                    Match(index, index + len(pattern), pattern, box)
+                )
+                start = index + 1
+        return matches
+
+    def search(self, pattern: str, regex: bool):
+        document = self.document()
+        string = document.toPlainText()
+
+        # Matchオブジェクトを取得
+        return self.findMatches(string, pattern, regex)
+
+    def highlightMatches(self, matches: list[Match]):
+        document = self.document()
+        highlight_format = QTextCharFormat()
+
+        # 既存のハイライトを削除
+        cursor = QTextCursor(document)
+        cursor.beginEditBlock()
+        cursor.select(QTextCursor.Document)
+        cursor.setCharFormat(QTextCharFormat())
+        cursor.endEditBlock()
+
+        # ライトモードなら cyan / ダークモードなら darkCyan
+        dark = "c"
+        if isDark():
+            dark = "darkC"
+        highlight_format.setBackground(getattr(Qt, f"{dark}yan"))
+
+        for match in matches:
+            cursor = QTextCursor(document)
+            cursor.setPosition(match.start)
+            cursor.setPosition(match.end, QTextCursor.MoveMode.KeepAnchor)
+            cursor.mergeCharFormat(highlight_format)
+
+    def focus(self, match: Match):
+        self.setFocus()
+        document = self.document()
+        cursor = QTextCursor(document)
+        cursor.setPosition(match.start)
+        cursor.setPosition(match.end, QTextCursor.KeepAnchor)
+        self.setTextCursor(cursor)
+        self.ensureCursorVisible()
 
 
 class LineEdit(QLineEdit):
