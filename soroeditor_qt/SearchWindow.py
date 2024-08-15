@@ -3,13 +3,13 @@ from typing import Literal
 from itertools import chain
 
 from darkdetect import isDark
-from PySide6.QtCore import Slot, Qt, QTimer, QEvent
+from PySide6.QtCore import Qt, QTimer, QEvent
 from PySide6.QtGui import QColor, QPalette, QKeyEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialogButtonBox,
+    QHBoxLayout,
     QLabel,
-    QSizePolicy,
     QLineEdit,
     QPushButton,
     QVBoxLayout,
@@ -17,30 +17,30 @@ from PySide6.QtWidgets import (
 )
 
 from .SearchOperation import Match
+from . import __global__ as _g
 
 
 class SearchWindow(QWidget):
     def __init__(
-        self, parent: QWidget, mode: Literal["Search", "Replace"]
+        self, parent: QWidget, mode: Literal["search", "replace"]
     ) -> None:
+        self.NO_MATCH_MESSAGE = "一致無し"
         super().__init__(parent, Qt.WindowType.Dialog)
         self.title = "SoroEditor - "
 
-        if mode == "Search":
+        if mode == "search":
             self.title += "検索"
         else:
             self.title += "置換"
         self.setWindowTitle(self.title)
 
         self.place = -1
-        self.matchesList = []
+        self.matchesList = self.emptyMatchesList()
 
         self.initUI(mode)
 
-        self.setMinimumWidth(300)
-        self.setSizePolicy(
-            QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Maximum
-        )
+        self.setFixedHeight(self.sizeHint().height())
+        self.setFixedWidth(400)
 
         self.timer = QTimer(self)
         self.timer.setInterval(100)
@@ -48,28 +48,34 @@ class SearchWindow(QWidget):
         self.timer.start()
 
     def initUI(self, mode):
-        vBox = QVBoxLayout(self)
+        hBox = QHBoxLayout(self)
+        vBox = QVBoxLayout()
+        hBox.addLayout(vBox, 50)
+        hBox.addStretch(1)
 
         vBox.addWidget(QLabel("検索"))
 
-        self.searchInput = Input(self, placeholderText="検索")
-        self.searchInput.setPlaceholderText("検索")
+        self.searchInput = Input(placeholderText="検索")
 
         vBox.addWidget(self.searchInput)
 
-        self.regexCheckBox = QCheckBox("正規表現を用いる")
+        self.regexCheckBox = QCheckBox("正規表現を用いる(&E)")
         vBox.addWidget(
             self.regexCheckBox, alignment=Qt.AlignmentFlag.AlignRight
         )
+        self.regexCheckBox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         vBox.addWidget(self.regexCheckBox)
 
-        self.replaceInput = QLineEdit(placeholderText="置換")
-        if mode == "Replace":
+        self.replaceInput = Input(placeholderText="置換", mode="replace")
+        if mode == "replace":
             vBox.addWidget(QLabel("置換"))
             vBox.addWidget(self.replaceInput)
 
         self.messageLabel = QLabel()
         palette = self.messageLabel.palette()
+        self.messageLabelTimer = QTimer(self.messageLabel)
+        self.messageLabelTimer.setSingleShot(True)
+        self.messageLabelTimer.setInterval(10000)
 
         r = palette.color(QPalette.ColorRole.Window).red()
         g = palette.color(QPalette.ColorRole.Window).green()
@@ -85,35 +91,32 @@ class SearchWindow(QWidget):
         self.messageLabel.setPalette(palette)
         vBox.addWidget(self.messageLabel)
 
-        dialogButtonBox = QDialogButtonBox()
-        if mode == "Search":
-            dialogButton = QDialogButtonBox.StandardButton.Apply
-        else:
-            dialogButton = (
-                QDialogButtonBox.StandardButton.Apply
-                | QDialogButtonBox.StandardButton.Save
-                | QDialogButtonBox.StandardButton.SaveAll
+        dialogButtonBox = QDialogButtonBox(orientation=Qt.Orientation.Vertical)
+        buttons = [
+            ("検索(&S)", "searchButtonClicked"),
+            ("前へ(&P)", "moveToPreviousButtonClicked"),
+            ("次へ(&N)", "moveToNextButtonClicked"),
+        ]
+        if mode == "replace":
+            buttons.extend(
+                [
+                    ("置換(&R)", "replaceButtonClicked"),
+                    ("全て置換(&A)", "replaceAllButtonClicked"),
+                ]
             )
-        dialogButtonBox.setStandardButtons(dialogButton)
 
-        dialogButtonBox.button(QDialogButtonBox.StandardButton.Apply).setText(
-            "検索(S)"
+        for text, method in buttons:
+            button = QPushButton(text)
+            dialogButtonBox.addButton(button, QDialogButtonBox.ActionRole)
+            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            button.clicked.connect(getattr(self, method))
+
+        hBox.addWidget(dialogButtonBox)
+
+        self.searchInput.textChanged.connect(self.validateRegex)
+        self.regexCheckBox.checkStateChanged.connect(
+            lambda: self.validateRegex(self.searchInput.text())
         )
-        dialogButtonBox.button(
-            QDialogButtonBox.StandardButton.Apply
-        ).setDefault(True)
-        if mode == "Replace":
-            dialogButtonBox.button(
-                QDialogButtonBox.StandardButton.Save
-            ).setText("置換(R)")
-            dialogButtonBox.button(
-                QDialogButtonBox.StandardButton.SaveAll
-            ).setText("全て置換(A)")
-        vBox.addWidget(dialogButtonBox)
-
-        # self.searchInput.returnPressed.connect(self.searchButtonClicked)
-        self.replaceInput.returnPressed.connect(self.replaceButtonClicked)
-        dialogButtonBox.clicked.connect(self.clicked)
 
     def changeWindowTitle(self):
         title = self.title + " "
@@ -122,26 +125,32 @@ class SearchWindow(QWidget):
             title += f"{self.place + 1}/"
 
         if self.searchInput.text():
-            title += f"{len(list(chain(*self.matchesList)))}件"
+            title += f"{len(self._getMatches())}件"
 
         self.setWindowTitle(title)
 
-    def search(self, pattern, regex):
-        if regex:
-            try:
-                re.compile(pattern)
-            except re.error:
-                self.messageLabel.setText("* 正規表現に誤りあり")
-                return []
-            else:
-                if self.messageLabel.text() == "* 正規表現に誤りあり":
+    def changeMessageText(
+        self, text: str, color: str = "", delete: bool = True
+    ):
+        self.messageLabel.setText(text)
+        palette = self.messageLabel.palette()
+        if color:
+            palette.setColor(QPalette.ColorRole.WindowText, color)
+        self.messageLabel.setPalette(palette)
+        if delete:
+            self.messageLabelTimer.stop()
+            self.messageLabelTimer.timeout.connect(
+                lambda: (
                     self.messageLabel.setText("")
-        else:
-            if self.messageLabel.text() == "* 正規表現に誤りあり":
-                self.messageLabel.setText("")
+                    if self.messageLabel.text() == text
+                    else False
+                )
+            )
+            self.messageLabelTimer.start()
 
+    def search(self, pattern, regex):
         if not pattern:
-            return []
+            return self.emptyMatchesList()
 
         return self.parent().search(pattern, regex)
 
@@ -155,38 +164,51 @@ class SearchWindow(QWidget):
         for i, matches in enumerate(self.matchesList):
             self.parent().highlightMatches(matches, i)
 
-    def moveToNextMatch(self):
-        matches = list(chain(*self.matchesList))
+    def emptyMatchesList(self):
+        return [[] for _ in _g.textEdits]
 
-        if not self.searchInput.text() or not matches:
-            self.messageLabel.setText("一致無し")
+    def _getMatches(self):
+        return list(chain(*self.matchesList))
+
+    def moveToMatch(self, direction):
+        if not self.validateRegex(self.searchInput.text()):
             return
 
-        self.place += 1
+        matches = self._getMatches()
+        if not self.searchInput.text() or not matches:
+            self.changeMessageText(self.NO_MATCH_MESSAGE)
+            return
 
-        if len(matches) - 1 < self.place:
-            self.place = 0
+        matchesCount = len(matches)
+        if direction > 0:
+            self.place = (self.place + direction) % matchesCount
+        else:
+            self.place = (self.place + direction + matchesCount) % matchesCount
 
-        self.focus(matches[self.place])
-        self.messageLabel.setText(matches[self.place].group)
+        match = matches[self.place]
+        self.focus(match)
+
+        currentPlace = self.parent().getCurrentPlace()
+        title = _g.lineEdits[currentPlace[0]].text()
+        currentPlace = tuple(i + 1 for i in currentPlace)
+        if not title:
+            title = f"ブロック{currentPlace[0]}"
+        block = f"{currentPlace[1]}段落"
+        char = f"{currentPlace[2]}文字"
+        self.changeMessageText(f"{match.group} - {f"{title}: {block} {char}"}")
+
+    def moveToNextMatch(self):
+        self.moveToMatch(1)
 
     def moveToPreviousMatch(self):
-        matches = list(chain(*self.matchesList))
+        self.moveToMatch(-1)
+
+    def replaceFocusedText(self):
+        matches = self._getMatches()
 
         if not self.searchInput.text() or not matches:
-            self.messageLabel.setText("一致無し")
+            self.changeMessageText(self.NO_MATCH_MESSAGE)
             return
-
-        self.place -= 1
-
-        if self.place < 0:
-            self.place = len(matches) - 1
-
-        self.focus(matches[self.place])
-        self.messageLabel.setText(matches[self.place].group)
-
-    def replacefocusedText(self):
-        matches = list(chain(*self.matchesList))
 
         if len(matches) - 1 < self.place:
             self.place = 0
@@ -198,48 +220,68 @@ class SearchWindow(QWidget):
 
         self.reset()
 
-        matches = list(chain(*self.matchesList))
+    def afterReplace(self, moveTo: Literal["next", "previous"] = "next"):
+        matches = self._getMatches()
 
         if len(matches) - 1 < self.place:
             self.place = 0
 
         if not matches:
-            self.messageLabel.setText("一致無し")
+            self.changeMessageText(self.NO_MATCH_MESSAGE)
             return
 
-        self.focus(matches[self.place])
-        self.messageLabel.setText(matches[self.place].group)
+        if moveTo == "next":
+            self.focus(matches[self.place])
+        if moveTo == "previous":
+            self.focus(matches[self.place])
+            self.moveToPreviousMatch()
+
+        self.changeMessageText(matches[self.place].group)
 
     def replaceAll(self):
         repl = self.replaceInput.text()
         for box, match in enumerate(self.matchesList):
             self.parent().replaceAll(match, repl, box)
-        self.messageLabel.setText(
-            f"- 全{len(list(chain(*self.matchesList)))}件置換完了"
+        self.changeMessageText(f"- 全{len(self._getMatches())}件置換完了")
+
+    def validateRegex(self, text):
+        if self.regexCheckBox.isChecked():
+            try:
+                re.compile(text)
+            except re.error:
+                self.changeMessageText("* 正規表現に誤りあり", "red", False)
+
+                palette = self.searchInput.palette()
+                palette.setColor(QPalette.ColorRole.Text, "red")
+                self.searchInput.setPalette(palette)
+
+                return False
+
+        self.changeMessageText("")
+        palette = self.messageLabel.palette()
+        palette.setColor(
+            QPalette.ColorRole.WindowText,
+            self.palette().color(QPalette.ColorRole.WindowText),
         )
+        self.messageLabel.setPalette(palette)
+
+        palette = self.searchInput.palette()
+        palette.setColor(
+            QPalette.ColorRole.Text,
+            self.palette().color(QPalette.ColorRole.Text),
+        )
+        self.searchInput.setPalette(palette)
+
+        return True
 
     def reset(self):
         searchText = self.searchInput.text()
         regex = self.regexCheckBox.isChecked()
         self.matchesList = self.search(searchText, regex)
-        if not list(chain(*self.matchesList)) or not self.searchInput.text():
+        if not self._getMatches() or not self.searchInput.text():
             self.place = -1
         self.highlightMatches()
         self.changeWindowTitle()
-
-    @Slot(QPushButton)
-    def clicked(self, button: QPushButton):
-        buttonText = button.text()
-
-        if "(S)" in buttonText:
-            # マッチ地点に順に移動
-            self.searchButtonClicked()
-        elif "(R)" in buttonText:
-            # マッチ地点に順に移動・置換
-            self.replaceButtonClicked()
-        elif "(A)" in buttonText:
-            # マッチ地点を全て置換
-            self.replaceAllButtonClicked()
 
     def searchButtonClicked(self):
         self.moveToNextMatch()
@@ -248,10 +290,17 @@ class SearchWindow(QWidget):
         if self.place < 0:
             self.moveToNextMatch()
             return
-        self.replacefocusedText()
+        self.replaceFocusedText()
+        self.afterReplace("next")
 
     def replaceAllButtonClicked(self):
         self.replaceAll()
+
+    def moveToNextButtonClicked(self):
+        self.moveToNextMatch()
+
+    def moveToPreviousButtonClicked(self):
+        self.moveToPreviousMatch()
 
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key.Key_Escape:
@@ -267,8 +316,13 @@ class SearchWindow(QWidget):
 
 
 class Input(QLineEdit):
-    def __init__(self, parent=None, placeholderText=""):
-        super().__init__(parent, placeholderText=placeholderText)
+    def __init__(
+        self,
+        placeholderText="",
+        mode: Literal["search", "replace"] = "search",
+    ):
+        super().__init__(placeholderText=placeholderText)
+        self.mode = mode
         self.installEventFilter(self)
 
     def eventFilter(self, obj, event):
@@ -281,9 +335,25 @@ class Input(QLineEdit):
                 event.key() == Qt.Key.Key_Return
                 and event.modifiers() & Qt.KeyboardModifier.ShiftModifier
             ):
-                self.parent().moveToPreviousMatch()
-                return True
+                if self.mode == "search":
+                    self.parent().moveToPreviousMatch()
+                    return True
+                elif self.mode == "replace":
+                    if self.parent().place < 0:
+                        self.parent().moveToNextMatch()
+                        return True
+                    self.parent().replaceFocusedText()
+                    self.parent().afterReplace("previous")
+                    return True
             elif event.key() == Qt.Key.Key_Return:
-                self.parent().moveToNextMatch()
-                return True
+                if self.mode == "search":
+                    self.parent().moveToNextMatch()
+                    return True
+                elif self.mode == "replace":
+                    if self.parent().place < 0:
+                        self.parent().moveToNextMatch()
+                        return True
+                    self.parent().replaceFocusedText()
+                    self.parent().afterReplace("next")
+                    return True
         return super().eventFilter(obj, event)

@@ -8,7 +8,6 @@ from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import (
     QAction,
-    QColor,
     QCloseEvent,
     QFocusEvent,
     QGuiApplication,
@@ -589,23 +588,27 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         messageBox.setDefaultButton(QMessageBox.StandardButton.Save)
         return messageBox
 
-    def setCurrentPlaceLabel(self):
+    def getCurrentPlace(self):
         widget = self.focusWidget()
         if widget:
-            if type(widget) is PlainTextEdit:
-                type_ = "本文"
-                index = _g.textEdits.index(widget)
+            if isinstance(widget, PlainTextEdit):
+                box = _g.textEdits.index(widget)
                 block = widget.textCursor().blockNumber()
                 positionInBlock = widget.textCursor().positionInBlock()
-            elif type(widget) is LineEdit:
-                type_ = "タイトル"
-                index = _g.lineEdits.index(widget)
+            elif isinstance(widget, LineEdit):
+                box = _g.lineEdits.index(widget)
                 block = None
                 positionInBlock = widget.cursorPosition()
             else:
                 return
+            return box, block, positionInBlock
 
-            title = _g.lineEdits[index].text()
+    def setCurrentPlaceLabel(self):
+        ret = self.getCurrentPlace()
+        if ret:
+            box, block, positionInBlock = ret
+
+            title = _g.lineEdits[box].text()
             for widget in [
                 widget
                 for toolBar in _g.toolBars
@@ -613,9 +616,11 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
             ]:
                 if widget.objectName() == "CurrentPlace":
                     text = (
-                        f'{title if title else f"{index+1}列"} - {type_}: '
-                        f'{"" if block is None else f"{block+1}段落"}'
-                        f"{positionInBlock+1}文字    "
+                        f"{title if title else f"ボックス{box+1}"}"
+                        ": "
+                        f"{"" if block is None else f"{block+1}段落"} "
+                        f"{positionInBlock+1}文字"
+                        "    "
                     )
                     widget.setText(text)
         else:
@@ -786,11 +791,11 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
             subWindow = AboutWindow
         elif type_ == "SearchWindow":
             subWindow = SearchWindow
-            mode = ["Search"]
+            mode = ["search"]
         elif type_ == "ReplaceWindow":
             type_ = "SearchWindow"
             subWindow = SearchWindow
-            mode = ["Replace"]
+            mode = ["replace"]
         elif type_ == "ProjectSettingWindow":
             subWindow = SettingWindow
             mode = ["Project"]
@@ -833,22 +838,6 @@ class TextEditor(QWidget):
             textEdit.setVerticalScrollBarPolicy(
                 Qt.ScrollBarPolicy.ScrollBarAlwaysOff
             )
-
-            palette = textEdit.palette()
-            # 非アクティブ状態（フォーカスがない場合）の選択色
-            palette.setColor(
-                QPalette.Inactive, QPalette.Highlight, QColor("blue")
-            )
-            textColor = palette.color(
-                QPalette.Active, QPalette.HighlightedText
-            )
-            reversedTextColor = QColor.fromRgb(
-                textColor.red(), textColor.green(), textColor.blue()
-            )
-            palette.setColor(
-                QPalette.Inactive, QPalette.HighlightedText, reversedTextColor
-            )
-            textEdit.setPalette(palette)
 
             textEdit.cursorPositionChanged.connect(self.cursorPositionChanged)
             textEdit.focusReceived.connect(self.focusReceived)
@@ -981,6 +970,25 @@ class TextEditor(QWidget):
 class PlainTextEdit(QPlainTextEdit):
     focusReceived = QtCore.Signal()
 
+    def __init__(self):
+        super().__init__()
+        palette = self.palette()
+
+        # 非アクティブ状態（フォーカスがない場合）の選択色
+        highlightColor = palette.color(QPalette.ColorRole.Highlight)
+        highlightColor.setAlphaF(0.7)
+        palette.setColor(QPalette.Inactive, QPalette.Highlight, highlightColor)
+        highlightedTextColor = palette.color(
+            QPalette.ColorRole.HighlightedText
+        )
+        palette.setColor(
+            QPalette.ColorGroup.Inactive,
+            QPalette.ColorRole.HighlightedText,
+            highlightedTextColor,
+        )
+
+        self.setPalette(palette)
+
     def focusInEvent(self, event: QFocusEvent) -> None:
         super().focusInEvent(event)
         self.focusReceived.emit()
@@ -1025,7 +1033,7 @@ class PlainTextEdit(QPlainTextEdit):
                         Match(match.start(), match.end(), match.group(), box)
                     )
             except re.error:
-                print("Invalid regex pattern")
+                return []
         else:
             start = 0
             while True:
@@ -1047,7 +1055,7 @@ class PlainTextEdit(QPlainTextEdit):
 
     def highlightMatches(self, matches: list[Match]):
         document = self.document()
-        highlight_format = QTextCharFormat()
+        highlightFormat = QTextCharFormat()
 
         # 既存のハイライトを削除
         cursor = QTextCursor(document)
@@ -1056,17 +1064,18 @@ class PlainTextEdit(QPlainTextEdit):
         cursor.setCharFormat(QTextCharFormat())
         cursor.endEditBlock()
 
-        # ライトモードなら cyan / ダークモードなら darkCyan
-        dark = "c"
+        highlightColor = self.palette().color(QPalette.ColorRole.Window)
         if isDark():
-            dark = "darkC"
-        highlight_format.setBackground(getattr(Qt, f"{dark}yan"))
+            highlightColor.setRgbF(0.4, 0.4, 0.4, 1.0)
+        else:
+            highlightColor.setRgbF(0.6, 0.6, 0.6, 1.0)
+        highlightFormat.setBackground(highlightColor)
 
         for match in matches:
             cursor = QTextCursor(document)
             cursor.setPosition(match.start)
             cursor.setPosition(match.end, QTextCursor.MoveMode.KeepAnchor)
-            cursor.mergeCharFormat(highlight_format)
+            cursor.mergeCharFormat(highlightFormat)
 
     def focus(self, match: Match):
         self.setFocus()
@@ -1083,4 +1092,4 @@ class LineEdit(QLineEdit):
 
     def focusInEvent(self, event: QFocusEvent) -> None:
         super().focusInEvent(event)
-        self.focusReceived
+        self.focusReceived.emit()
