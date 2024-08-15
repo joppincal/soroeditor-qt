@@ -38,6 +38,10 @@ from .SearchWindow import SearchWindow
 from .SettingWindow import SettingWindow
 from .ThirdPartyNoticesWindow import ThirdPartyNoticesWindow
 
+from .logSetting import logSetting
+
+logger = logSetting(__name__)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -1054,7 +1058,7 @@ class PlainTextEdit(QPlainTextEdit):
         # 既存のハイライトを削除
         cursor = QTextCursor(document)
         cursor.beginEditBlock()
-        cursor.select(QTextCursor.Document)
+        cursor.select(QTextCursor.SelectionType.Document)
         cursor.setCharFormat(QTextCharFormat())
         cursor.endEditBlock()
 
@@ -1076,7 +1080,7 @@ class PlainTextEdit(QPlainTextEdit):
         document = self.document()
         cursor = QTextCursor(document)
         cursor.setPosition(match.start)
-        cursor.setPosition(match.end, QTextCursor.KeepAnchor)
+        cursor.setPosition(match.end, QTextCursor.MoveMode.KeepAnchor)
         self.setTextCursor(cursor)
         self.ensureCursorVisible()
 
