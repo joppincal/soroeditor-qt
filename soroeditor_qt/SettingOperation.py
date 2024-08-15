@@ -3,9 +3,11 @@ import copy
 import yaml as __y
 from PySide6.QtGui import QFontDatabase
 
-from soroeditor_qt import DataOperation as __d
-from soroeditor_qt import FileOperation as __f
-from soroeditor_qt import __global__ as __g
+from . import DataOperation as __d
+from . import FileOperation as __f
+from .logSetting import logSetting
+
+logger = logSetting(__name__)
 
 __PATH = "./setting.yaml"
 
@@ -56,7 +58,7 @@ def openSettingFile() -> dict:
             __y.scanner.ScannerError,
             __y.constructor.ConstructorError,
         ) as e:
-            __g.logger.error(f"Failed to load Yaml data.: {e}")
+            logger.error(f"Failed to load Yaml data.: {e}")
     return dic
 
 

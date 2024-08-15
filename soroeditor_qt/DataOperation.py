@@ -1,7 +1,10 @@
 import yaml as __y
 
-from soroeditor_qt import FileOperation
-from soroeditor_qt import __global__ as __g
+from . import FileOperation
+from . import __global__ as __g
+from .logSetting import logSetting
+
+logger = logSetting(__name__)
 
 
 def getCurrentText(i: int) -> str | None:
@@ -60,7 +63,7 @@ def makeDataToYaml(data: dict) -> str:
         __y.resolver.ResolverError,
         __y.emitter.EmitterError,
     ) as e:
-        __g.logger.error(f"Failed to dump Yaml data: {e}")
+        logger.error(f"Failed to dump Yaml data: {e}")
         return ""
         # ファイルが読み込めなかった場合
 
@@ -82,7 +85,7 @@ def openProjectFile(filePath) -> dict:
             __y.scanner.ScannerError,
             __y.constructor.ConstructorError,
         ) as e:
-            __g.logger.error(f"Failed to load Yaml data.: {e}")
+            logger.error(f"Failed to load Yaml data.: {e}")
     return dic
 
 

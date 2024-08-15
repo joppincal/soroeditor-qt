@@ -3,8 +3,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel, QWidget
 
-from soroeditor_qt import __global__
-from soroeditor_qt.Icon import Icon
+from . import __global__
+from .Icon import Icon
 
 
 class AboutWindow(QWidget):
