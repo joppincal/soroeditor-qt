@@ -1,6 +1,5 @@
+from logging import DEBUG, Formatter, Logger, getLogger, handlers
 from pathlib import Path
-from logging import DEBUG, Formatter, getLogger, handlers, Logger
-
 
 logPath = Path.home() / ".soroeditor" / "log"
 logPath.mkdir(parents=True, exist_ok=True)

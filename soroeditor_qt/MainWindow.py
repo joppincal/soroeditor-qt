@@ -31,14 +31,14 @@ from PySide6.QtWidgets import (
 
 from . import DataOperation, SettingOperation
 from . import __global__ as _g
+from . import __version__
 from .AboutWindow import AboutWindow
 from .Icon import Icon
+from .logSetting import logSetting
 from .SearchOperation import Match
 from .SearchWindow import SearchWindow
 from .SettingWindow import SettingWindow
 from .ThirdPartyNoticesWindow import ThirdPartyNoticesWindow
-
-from .logSetting import logSetting
 
 logger = logSetting(__name__)
 
@@ -57,7 +57,7 @@ class MainWindow(QMainWindow):
         _g.settings = SettingOperation.settingVerification(
             self.openSettingFile()
         )
-        _g.settings["Version"] = _g.__version__
+        _g.settings["Version"] = __version__.__version__
         SettingOperation.writeSettingFile(_g.settings)
         _g.projectSettings = copy.deepcopy(_g.settings)
 
@@ -504,7 +504,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 self.addFileHistory(filePath)
                 self.setFileHistoryMenu()
 
-                data["settings"]["Version"] = _g.__version__
+                data["settings"]["Version"] = __version__.__version__
                 _g.projectSettings.update(
                     SettingOperation.settingVerification(data["settings"])
                 )
