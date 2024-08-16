@@ -43,11 +43,6 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        pixmap = QPixmap("soroeditor/src/splash.png")
-        splash = QSplashScreen(pixmap)
-        splash.setWindowFlags(Qt.SplashScreen | Qt.WindowStaysOnTopHint)
-        splash.show()
-
         # _g.settings: 設定ファイルに保存される設定
         # _g.projectSettings: プロジェクトファイルごとに保存される設定
         _g.settings = SettingOperation.settingVerification(
@@ -72,7 +67,6 @@ class MainWindow(QMainWindow):
 
         self.reflectionSettings("All")
         self.show()
-        splash.hide()
 
         if len(sys.argv) >= 2:
             sys.argv[1] = os.path.abspath(sys.argv[1]).replace("\\", "/")
