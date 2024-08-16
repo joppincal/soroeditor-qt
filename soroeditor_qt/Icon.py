@@ -1,6 +1,8 @@
 from pathlib import Path
+
 from darkdetect import isDark
 from PySide6.QtGui import QPixmap
+
 
 class Icon:
     def __init__(self):
@@ -19,11 +21,33 @@ class Icon:
 
     def _loadThemedIcons(self):
         themedIcons = [
-            "Balance", "Bookmark", "Close", "Copy", "Cut", "Export",
-            "FullScreen", "Help", "History", "Import", "Info", "NewFile",
-            "OpenFile", "Paste", "Play", "ProjectSetting", "Refresh",
-            "Redo", "Replace", "SaveFile", "SaveFileAs", "Search",
-            "Select", "SelectAll", "Setting", "Template", "Undo"
+            "Balance",
+            "Bookmark",
+            "Close",
+            "Copy",
+            "Cut",
+            "Export",
+            "FullScreen",
+            "Help",
+            "History",
+            "Import",
+            "Info",
+            "NewFile",
+            "OpenFile",
+            "Paste",
+            "Play",
+            "ProjectSetting",
+            "Refresh",
+            "Redo",
+            "Replace",
+            "SaveFile",
+            "SaveFileAs",
+            "Search",
+            "Select",
+            "SelectAll",
+            "Setting",
+            "Template",
+            "Undo",
         ]
 
         for iconName in themedIcons:

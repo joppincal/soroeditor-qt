@@ -18,7 +18,6 @@ from PySide6.QtWidgets import (
 )
 
 from . import SettingOperation
-from . import __global__ as _g
 
 
 class SettingWindow(QWidget):
@@ -30,7 +29,7 @@ class SettingWindow(QWidget):
         self.mode = mode
         self.dataByMode: dict = {}
         if mode == "Default":
-            self.dataByMode["Settings"] = _g.settings
+            self.dataByMode["Settings"] = SettingOperation.globalSettingData()
             self.dataByMode["WindowTitle"] = "デフォルト設定"
             self.dataByMode["SaveSuccessMessage"] = (
                 "SoroEditor - Infomation",
@@ -41,7 +40,7 @@ class SettingWindow(QWidget):
                 "設定の保存に失敗しました",
             )
         elif mode == "Project":
-            self.dataByMode["Settings"] = _g.projectSettings
+            self.dataByMode["Settings"] = SettingOperation.projectSettingData()
             self.dataByMode["WindowTitle"] = "プロジェクト設定"
             self.dataByMode["SaveSuccessMessage"] = (
                 "SoroEditor - Infomation",
@@ -185,7 +184,7 @@ class SettingWindow(QWidget):
         if button == self.dialogButtonBox.button(
             self.dialogButtonBox.StandardButton.Save
         ):
-            if self.saveSetting():
+            if self.saveSettings():
                 QMessageBox.information(
                     self, *self.dataByMode["SaveSuccessMessage"]
                 )
@@ -228,7 +227,7 @@ class SettingWindow(QWidget):
         self.widgetsForVBox1[1].setFont(font)
         self.widgetsForVBox1[3].setFont(styledFont)
 
-    def saveSetting(self) -> bool:
+    def gatherSettings(self):
         self.dataByMode["Settings"]["Font"] = self.widgetsForVBox1[
             1
         ].currentText()
@@ -256,22 +255,29 @@ class SettingWindow(QWidget):
         resizable = self.widgetsForVBox1[8].isChecked()
         self.dataByMode["Settings"]["Resizable"] = resizable
 
-        self.dataByMode["Settings"] = SettingOperation.settingVerification(
-            self.dataByMode["Settings"]
-        )
+    def saveSettings(self) -> bool:
+        self.gatherSettings()
 
         if self.mode == "Default":
+            SettingOperation.setGlobalSettingData(self.dataByMode["Settings"])
             if self.settingCoverageCheckbox.isChecked():
-                _g.projectSettings = copy.deepcopy(self.dataByMode["Settings"])
+                SettingOperation.setProjectSettingData(
+                    self.dataByMode["Settings"]
+                )
             ret = SettingOperation.writeSettingFile(
                 self.dataByMode["Settings"]
             )
         elif self.mode == "Project":
+            SettingOperation.setProjectSettingData(self.dataByMode["Settings"])
             if self.settingCoverageCheckbox.isChecked():
-                _g.settings = copy.deepcopy(self.dataByMode["Settings"])
-                ret = SettingOperation.writeSettingFile(
-                    self.dataByMode["Settings"]
-                )
+                fileHistory = SettingOperation.globalSettingData()[
+                    "FileHistory"
+                ]
+                globalSetting = self.dataByMode["Settings"] | {
+                    "FileHistory": fileHistory
+                }
+                SettingOperation.setGlobalSettingData(globalSetting)
+                ret = SettingOperation.writeSettingFile(globalSetting)
             else:
                 ret = True
         else:
@@ -488,24 +494,7 @@ class ToolBarSettingWindow(QWidget):
 
         self.dataByMode["Settings"]["ToolBar"] = data
 
-        self.parent().parent().reflectionSettings("All")  # type: ignore
-
-        if self.mode == "Default":
-            if self.parent().settingCoverageCheckbox.isChecked():
-                _g.projectSettings = copy.deepcopy(self.dataByMode["Settings"])
-            return SettingOperation.writeSettingFile(
-                self.dataByMode["Settings"]
-            )
-        elif self.mode == "Project":
-            if self.parent().settingCoverageCheckbox.isChecked():
-                _g.settings = copy.deepcopy(self.dataByMode["Settings"])
-                return SettingOperation.writeSettingFile(
-                    self.dataByMode["Settings"]
-                )
-            else:
-                return True
-        else:
-            return False
+        self.parent().saveSettings()
 
     def setSettings(self, settings: dict):
         for (

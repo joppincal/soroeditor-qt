@@ -1,6 +1,6 @@
 import yaml as __y
 
-from . import FileOperation
+from . import FileOperation, SettingOperation
 from . import __global__ as __g
 from .logSetting import logSetting
 
@@ -48,7 +48,7 @@ def makeSaveData() -> dict:
         data[i]["title"] = title
     settings = {
         key: value
-        for key, value in __g.projectSettings.items()
+        for key, value in SettingOperation.projectSettingData().items()
         if key != "FileHistory"
     }
     return {"data": data, "settings": settings}

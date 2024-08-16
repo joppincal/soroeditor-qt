@@ -44,6 +44,10 @@ __DEFAULTSETTINGDATA = {
     "Version": "0.0.0",
 }
 
+__globalSettingData: dict
+
+__projectSettingData: dict
+
 
 def openSettingFile() -> dict:
     dic: dict = {}
@@ -127,3 +131,23 @@ def settingVerification(dic: dict) -> dict:
 
 def defaultSettingData() -> dict:
     return copy.deepcopy(__DEFAULTSETTINGDATA)
+
+
+def globalSettingData() -> dict:
+    return copy.deepcopy(__globalSettingData)
+
+
+def setGlobalSettingData(dic: dict):
+    dic = settingVerification(dic)
+    global __globalSettingData
+    __globalSettingData = dic
+
+
+def projectSettingData() -> dict:
+    return copy.deepcopy(__projectSettingData)
+
+
+def setProjectSettingData(dic: dict):
+    dic = settingVerification(dic)
+    global __projectSettingData
+    __projectSettingData = dic

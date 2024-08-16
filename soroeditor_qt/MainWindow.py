@@ -29,9 +29,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import DataOperation, SettingOperation
+from . import DataOperation
+from . import SettingOperation as _s
 from . import __global__ as _g
-from . import __version__
+from .__version__ import __version__
 from .AboutWindow import AboutWindow
 from .Icon import Icon
 from .logSetting import logSetting
@@ -47,14 +48,13 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # _g.settings: 設定ファイルに保存される設定
-        # _g.projectSettings: プロジェクトファイルごとに保存される設定
-        _g.settings = SettingOperation.settingVerification(
-            self.openSettingFile()
-        )
-        _g.settings["Version"] = __version__.__version__
-        SettingOperation.writeSettingFile(_g.settings)
-        _g.projectSettings = copy.deepcopy(_g.settings)
+        # globalSettings: 設定ファイルに保存される設定
+        # projectSettings: プロジェクトファイルごとに保存される設定
+        settings = self.openSettingFile()
+        settings["Version"] = __version__
+        _s.setGlobalSettingData(settings)
+        _s.writeSettingFile(_s.globalSettingData())
+        _s.setProjectSettingData(_s.globalSettingData())
 
         self.setWindowTitle("SoroEditor")
         self.setWindowIcon(Icon().AppIcon)
@@ -112,7 +112,7 @@ class MainWindow(QMainWindow):
         menu["helpMenu"].addActions(list(_g.qAction["help"].values()))
 
     def makeToolBar(self):
-        toolBarSettings = _g.projectSettings["ToolBar"]
+        toolBarSettings = _s.projectSettingData()["ToolBar"]
         toolButtonsElements = {
             "NewFile": {"actions": [_g.qAction["file"]["NewFile"]]},
             "OpenFile": {"actions": [_g.qAction["file"]["OpenFile"]]},
@@ -498,9 +498,9 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 self.addFileHistory(filePath)
                 self.setFileHistoryMenu()
 
-                data["settings"]["Version"] = __version__.__version__
-                _g.projectSettings.update(
-                    SettingOperation.settingVerification(data["settings"])
+                data["settings"]["Version"] = __version__
+                _s.setProjectSettingData(
+                    _s.settingVerification(data["settings"])
                 )
                 self.reflectionSettings("All")
 
@@ -519,11 +519,11 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         def inner():
             ret = self.openProjectFile(filePath)
             if not ret:
-                settings = SettingOperation.openSettingFile()
+                settings = _s.openSettingFile()
                 fileHistory = settings["FileHistory"]
                 fileHistory.remove(filePath)
-                SettingOperation.writeSettingFile(settings)
-                _g.settings["FileHistory"] = fileHistory
+                _s.writeSettingFile(settings)
+                _s.setGlobalSettingData(settings)
                 self.setFileHistoryMenu()
             return ret
 
@@ -541,7 +541,9 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                     shortcut=QKeySequence("Ctrl+R") if i == 0 else False,
                 )
                 for i, filePath in enumerate(
-                    list(dict.fromkeys(_g.settings["FileHistory"]))[:10]
+                    list(dict.fromkeys(_s.globalSettingData()["FileHistory"]))[
+                        :10
+                    ]
                 )
             ]
         )
@@ -556,13 +558,13 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         )
 
     def addFileHistory(self, filePath: str):
-        settings = SettingOperation.openSettingFile()
+        settings = _s.openSettingFile()
         fileHistory = settings["FileHistory"]
         fileHistory.insert(0, filePath)
         fileHistory = list(dict.fromkeys(fileHistory))
         settings["FileHistory"] = fileHistory
-        _g.settings["FileHistory"] = fileHistory
-        SettingOperation.writeSettingFile(settings)
+        _s.setGlobalSettingData(settings)
+        _s.writeSettingFile(settings)
 
     def dataChangedAlert(self) -> QMessageBox:
         messageBox = QMessageBox(self)
@@ -655,11 +657,11 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         self.setWindowTitle(title)
 
     def openSettingFile(self):
-        settings = SettingOperation.openSettingFile()
+        settings = _s.openSettingFile()
         if not settings:
-            settings = SettingOperation.defaultSettingData()
-            SettingOperation.makeNewSettingFile()
-        return settings
+            settings = _s.defaultSettingData()
+            _s.makeNewSettingFile()
+        return _s.settingVerification(settings)
 
     def reflectionSettings(self, item: str):
         """Reflects the settings entered for the item.
@@ -690,7 +692,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 function()
 
     def reflectSize(self):
-        size = _g.projectSettings.get("Size")
+        size = _s.projectSettingData().get("Size")
         ratio = QGuiApplication.primaryScreen().devicePixelRatio()
         screenSize = QGuiApplication.primaryScreen().size().toTuple()
         if size:
@@ -709,15 +711,15 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 self.moveWindowToCenter()
 
     def reflectResizable(self):
-        resizable = _g.projectSettings.get("Resizable")
+        resizable = _s.projectSettingData().get("Resizable")
         if resizable:
             self.setFixedSize(0xFFFFFF, 0xFFFFFF)
         else:
             self.setFixedSize(self.size())
 
     def reflectFontFamily(self):
-        fontFamily = _g.projectSettings.get("Font")
-        fontStyle = _g.projectSettings.get("FontStyle")
+        fontFamily = _s.projectSettingData().get("Font")
+        fontStyle = _s.projectSettingData().get("FontStyle")
         if fontFamily:
             font = _g.textEditor.font()
             font.setFamily(fontFamily)
@@ -725,7 +727,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
             _g.textEditor.setFont(font)
 
     def reflectFontSize(self):
-        fontSize = _g.projectSettings.get("FontSize")
+        fontSize = _s.projectSettingData().get("FontSize")
         if fontSize:
             font = _g.textEditor.font()
             font.setPointSize(fontSize)
@@ -739,8 +741,8 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
     def toggleFullScreenMode(self):
         if self.isFullScreen():
             self.showNormal()
-            if _g.projectSettings["Size"] == "FullScreen":
-                self.resize(*SettingOperation.defaultSettingData()["Size"])
+            if _s.projectSettingData()["Size"] == "FullScreen":
+                self.resize(*_s.defaultSettingData()["Size"])
                 self.moveWindowToCenter()
             else:
                 self.reflectionSettings("Size")
