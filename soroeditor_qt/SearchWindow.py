@@ -1,10 +1,10 @@
 import re
-from typing import Literal
 from itertools import chain
+from typing import Literal
 
 from darkdetect import isDark
-from PySide6.QtCore import Qt, QTimer, QEvent
-from PySide6.QtGui import QColor, QPalette, QKeyEvent
+from PySide6.QtCore import QEvent, Qt, QTimer
+from PySide6.QtGui import QColor, QKeyEvent, QPalette
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialogButtonBox,
@@ -16,8 +16,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .SearchOperation import Match
 from . import __global__ as _g
+from .SearchOperation import Match
 
 
 class SearchWindow(QWidget):

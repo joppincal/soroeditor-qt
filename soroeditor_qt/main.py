@@ -4,9 +4,8 @@ import sys
 from PySide6.QtWidgets import QApplication
 
 from . import __global__
-from .MainWindow import MainWindow
-
 from .logSetting import logSetting
+from .MainWindow import MainWindow
 
 logger = logSetting(__name__)
 
