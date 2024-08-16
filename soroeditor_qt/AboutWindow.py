@@ -19,7 +19,7 @@ class AboutWindow(QWidget):
 
     def makeLayout(self):
         icon = QLabel("SoroEditorアイコン")
-        icon.setPixmap(Icon().Icon.scaled(256, 256))
+        icon.setPixmap(Icon().AppIcon.scaled(256, 256))
         QFont
         self.font()
         label = QLabel()

@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
         _g.projectSettings = copy.deepcopy(_g.settings)
 
         self.setWindowTitle("SoroEditor")
-        self.setWindowIcon(Icon().Icon)
+        self.setWindowIcon(Icon().AppIcon)
 
         self.makeLayout()
 
