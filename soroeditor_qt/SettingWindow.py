@@ -459,7 +459,7 @@ class ToolBarSettingWindow(QWidget):
         ):
             self.close()
 
-    def saveToolBarSetting(self):
+    def saveToolBarSetting(self) -> bool:
         data = {}
         checks = [checkBox.isChecked() for checkBox in self.checkBoxes]
         areas = [
@@ -494,7 +494,7 @@ class ToolBarSettingWindow(QWidget):
 
         self.dataByMode["Settings"]["ToolBar"] = data
 
-        self.parent().saveSettings()
+        return self.parent().saveSettings()
 
     def setSettings(self, settings: dict):
         for (
