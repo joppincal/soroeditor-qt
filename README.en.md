@@ -1,8 +1,8 @@
-[README.md (日本語)](README.md)
+[JP](README.md)/[EN](README.en.md)
 
 # SoroEditor - Parallel Synchronous Text Editor
 
-![icon](soroeditor/src/splash.png)
+![splash](soroeditor_qt/src/splash.png)
 
 SoroEditor is Parallel Synchronous Text Editor.
 
@@ -22,12 +22,14 @@ In preparation
   - Fonts
 - Project files
 - Configuration File
+- Search
+  - Search in file
+- Theme
 
 ### Features to be implemented
 
 - Editing from menu bar/toolbar
 - Search
-  - Search in file
   - Web search
 - Bookmarks
 - Canned Text
@@ -39,11 +41,10 @@ In preparation
 - Text Editor Settings
   - Number of columns
   - Column Width
-- Theme
 
 ## Other
 
-This repository is a reworking of my previous work, SoroEditor (created with tkinter + ttkbootstrap), using PySide6. The main goal at present is to reproduce the functionality of the previous work.
+This repository is a reworking of my previous work, [SoroEditor](https://github.com/joppincal/SoroEditor) (created with tkinter + ttkbootstrap), using PySide6. The main goal at present is to reproduce the functionality of the previous work.
 
 The purpose of the re-production is twofold. First, I felt the limitations of working with tkinter. Second, I wanted to try a more modern GUI kit.
 

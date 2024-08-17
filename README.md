@@ -1,4 +1,4 @@
-[README-en.md](README-en.md)
+[JP](README.md)/[EN](README.en.md)
 
 # SoroEditor - 並列同期テキストエディタ
 
@@ -22,12 +22,14 @@ SoroEditorは並列同期テキストエディタです。
   - フォント
 - プロジェクトファイル
 - 設定ファイル
+- 検索
+  - ファイル内検索
+- テーマ
 
 ### 実装予定機能
 
 - メニューバー・ツールバーからの編集
 - 検索
-  - ファイル内検索
   - ウェブ検索
 - しおり
 - 定型文
@@ -39,11 +41,10 @@ SoroEditorは並列同期テキストエディタです。
 - テキストエディタの設定
   - 列数
   - 列幅
-- テーマ
 
 ## その他
 
-このリポジトリは、私の前作 SoroEditor (tkinter + ttkbootstrap で作成) を PySide6 を使って作り直したものです。当面の目標は、前作の機能を再現することです。
+このリポジトリは、私の前作 [SoroEditor](https://github.com/joppincal/SoroEditor) (tkinter + ttkbootstrap で作成) を PySide6 を使って作り直したものです。当面の目標は、前作の機能を再現することです。
 
 再制作の目的は2つあります。第一に、tkinterでの作業に限界を感じたこと。第二に、よりモダンなGUIキットを試してみたかったことです。
 
