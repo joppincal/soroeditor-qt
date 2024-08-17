@@ -16,7 +16,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import __global__ as _g
 from .SearchOperation import Match
 
 
@@ -165,7 +164,7 @@ class SearchWindow(QWidget):
             self.parent().highlightMatches(matches, i)
 
     def emptyMatchesList(self):
-        return [[] for _ in _g.textEdits]
+        return [[] for _ in self.parent().textEditor.textEdits]
 
     def _getMatches(self):
         return list(chain(*self.matchesList))
@@ -189,7 +188,7 @@ class SearchWindow(QWidget):
         self.focus(match)
 
         currentPlace = self.parent().getCurrentPlace()
-        title = _g.lineEdits[currentPlace[0]].text()
+        title = self.parent().textEditor.lineEdits[currentPlace[0]].text()
         currentPlace = tuple(i + 1 for i in currentPlace)
         if not title:
             title = f"ブロック{currentPlace[0]}"

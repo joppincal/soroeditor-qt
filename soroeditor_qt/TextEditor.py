@@ -12,22 +12,24 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import __global__ as _g
 from .SearchOperation import Match
 
 
 class TextEditor(QWidget):
-    def __init__(self, parent):
+    def __init__(
+        self,
+        parent: QWidget,
+        numberOfBoxes: int = 3,
+        boxStretches: list[int] = [15, 60, 25],
+    ):
         super().__init__(parent)
-        self.parent = parent
+        self.textEdits = [PlainTextEdit() for _ in range(numberOfBoxes)]
+        self.lineEdits = [LineEdit() for _ in range(numberOfBoxes)]
+        self.boxStretches = boxStretches
         self.makeLayout()
 
     def makeLayout(self):
-        _g.textEdits = [PlainTextEdit() for _ in range(3)]  # temporary
-        _g.lineEdits = [LineEdit() for _ in range(3)]  # temporary
-        _g.textBoxStretches = [15, 60, 25]  # temporary
-
-        for textEdit in _g.textEdits:
+        for textEdit in self.textEdits:
             textEdit.verticalScrollBar().valueChanged.connect(
                 self.textBoxScrollBarValueChanged
             )
@@ -38,7 +40,7 @@ class TextEditor(QWidget):
             textEdit.cursorPositionChanged.connect(self.cursorPositionChanged)
             textEdit.focusReceived.connect(self.focusReceived)
             textEdit.setTabChangesFocus(True)
-        for lineEdit in _g.lineEdits:
+        for lineEdit in self.lineEdits:
             lineEdit.cursorPositionChanged.connect(self.cursorPositionChanged)
             lineEdit.focusReceived.connect(self.focusReceived)
             if lineEdit.style().name() == "windows11":
@@ -50,38 +52,41 @@ class TextEditor(QWidget):
             0,
             max(
                 [
-                    textBox.verticalScrollBar().maximum()
-                    for textBox in _g.textEdits
+                    textEdit.verticalScrollBar().maximum()
+                    for textEdit in self.textEdits
                 ]
             ),
         )
         self.mainScrollBar.setPageStep(
             max(
                 [
-                    textBox.verticalScrollBar().pageStep()
-                    for textBox in _g.textEdits
+                    textEdit.verticalScrollBar().pageStep()
+                    for textEdit in self.textEdits
                 ]
             )
         )
 
         self.hlayout = QHBoxLayout(self)
-        self.vlayouts = [QVBoxLayout() for _ in range(len(_g.textEdits))]
+        self.vlayouts = [QVBoxLayout() for _ in range(len(self.textEdits))]
 
         for vlayout, lineEdit, textEdit, stretch in zip(
-            self.vlayouts, _g.lineEdits, _g.textEdits, _g.textBoxStretches
+            self.vlayouts,
+            self.lineEdits,
+            self.textEdits,
+            self.boxStretches,
         ):
             vlayout.addWidget(lineEdit)
             vlayout.addWidget(textEdit)
             self.hlayout.addLayout(vlayout, stretch)
 
         for t0, t1 in zip(
-            _g.textEdits, (_g.textEdits[1:] + _g.textEdits[:1])[:-1]
+            self.textEdits, (self.textEdits[1:] + self.textEdits[:1])[:-1]
         ):
-            self.parent.setTabOrder(t0, t1)
+            self.parent().setTabOrder(t0, t1)
         for t0, t1 in zip(
-            _g.lineEdits, (_g.lineEdits[1:] + _g.lineEdits[:1])[:-1]
+            self.lineEdits, (self.lineEdits[1:] + self.lineEdits[:1])[:-1]
         ):
-            self.parent.setTabOrder(t0, t1)
+            self.parent().setTabOrder(t0, t1)
 
         self.hlayout.addWidget(self.mainScrollBar)
 
@@ -89,30 +94,30 @@ class TextEditor(QWidget):
         self.moveToTop()
 
     def moveToTop(self):
-        for textBox in _g.textEdits:
-            textBox.verticalScrollBar().setValue(0)
-            cursor = QTextCursor(textBox.firstVisibleBlock())
-            textBox.setTextCursor(cursor)
-            textBox.textCursor()
+        for textEdit in self.textEdits:
+            textEdit.verticalScrollBar().setValue(0)
+            cursor = QTextCursor(textEdit.firstVisibleBlock())
+            textEdit.setTextCursor(cursor)
+            textEdit.textCursor()
 
     def addReturn(self):
-        for textBox in _g.textEdits:
+        for textEdit in self.textEdits:
             while (
-                textBox.verticalScrollBar().maximum()
-                <= textBox.verticalScrollBar().pageStep()
+                textEdit.verticalScrollBar().maximum()
+                <= textEdit.verticalScrollBar().pageStep()
             ):
-                textBox.appendPlainText("\n")
-                textBox.verticalScrollBar().setValue(0)
+                textEdit.appendPlainText("\n")
+                textEdit.verticalScrollBar().setValue(0)
             while (
-                textBox.verticalScrollBar().maximum()
-                == textBox.verticalScrollBar().value()
+                textEdit.verticalScrollBar().maximum()
+                == textEdit.verticalScrollBar().value()
             ):
-                textBox.verticalScrollBar().setValue(
-                    textBox.verticalScrollBar().maximum() - 2
+                textEdit.verticalScrollBar().setValue(
+                    textEdit.verticalScrollBar().maximum() - 2
                 )
-                textBox.appendPlainText("\n")
-                textBox.verticalScrollBar().setValue(
-                    textBox.verticalScrollBar().maximum() - 2
+                textEdit.appendPlainText("\n")
+                textEdit.verticalScrollBar().setValue(
+                    textEdit.verticalScrollBar().maximum() - 2
                 )
 
     @Slot()
@@ -125,12 +130,15 @@ class TextEditor(QWidget):
 
         newValue = self.sender().value()
         maxMaximum = max(
-            [textBox.verticalScrollBar().maximum() for textBox in _g.textEdits]
+            [
+                textEdit.verticalScrollBar().maximum()
+                for textEdit in self.textEdits
+            ]
         )
         pageStep = max(
             [
-                textBox.verticalScrollBar().pageStep()
-                for textBox in _g.textEdits
+                textEdit.verticalScrollBar().pageStep()
+                for textEdit in self.textEdits
             ]
         )
 
@@ -144,28 +152,68 @@ class TextEditor(QWidget):
         メインスクロールバーの値が変更された際に各テキストボックスのスクロールバーに値を反映する
         """
         value = self.mainScrollBar.value()
-        for textBox in _g.textEdits:
-            bar = textBox.verticalScrollBar()
+        for textEdit in self.textEdits:
+            bar = textEdit.verticalScrollBar()
             diff = value - bar.maximum()
             if diff > 0:
-                textBox.appendPlainText("\n" * diff)
+                textEdit.appendPlainText("\n" * diff)
             else:
-                textBox.verticalScrollBar().setValue(value)
+                textEdit.verticalScrollBar().setValue(value)
 
     @Slot()
     def cursorPositionChanged(self):
-        self.parent.setCurrentPlaceLabel()
+        self.parent().setCurrentPlaceLabel()
 
     @Slot()
     def focusReceived(self):
-        self.parent.setCurrentPlaceLabel()
+        self.parent().setCurrentPlaceLabel()
+
+    def getCurrentText(self, i: int) -> str | None:
+        """
+        numにて指定するテキストボックスのテキストを返す
+        対応するテキストボックスが存在しない場合Noneを返す
+        """
+        return (
+            self.textEdits[i].toPlainText()
+            if len(self.textEdits) > i
+            else None
+        )
+
+    def getCurrentTitle(self, i: int) -> str | None:
+        """
+        numにて指定するテキストボックスのタイトルを返す
+        対応するラインエディットが存在しない場合Noneを返す
+        """
+        return self.lineEdits[i].text() if len(self.lineEdits) > i else None
+
+    def getAllCurrentText(self) -> list[str | None]:
+        """
+        すべてのテキストボックスのテキストをリストで返す
+        """
+        return [self.getCurrentText(i) for i in range(len(self.textEdits))]
+
+    def getAllCurrentTitle(self) -> list[str | None]:
+        """
+        すべてのラインエディットのテキストをリストで返す
+        """
+        return [self.getCurrentTitle(i) for i in range(len(self.lineEdits))]
+
+    def setTextInTextBoxes(self, dic: dict):
+        numberOfTextBoxes = len(self.textEdits)
+        for i in range(100):
+            if i not in dic or i >= numberOfTextBoxes:
+                pass
+                return
+            self.textEdits[i].setPlainText(dic[i]["text"])
+            self.lineEdits[i].setText(dic[i]["title"])
+            self.addReturn()
 
 
 class PlainTextEdit(QPlainTextEdit):
     focusReceived = Signal()
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         palette = self.palette()
 
         # 非アクティブ状態（フォーカスがない場合）の選択色
@@ -189,13 +237,13 @@ class PlainTextEdit(QPlainTextEdit):
 
     def focusNextPrevChild(self, next: bool) -> bool:
         rect = self.cursorRect()
-        for textEdit in _g.textEdits:
+        for textEdit in self.parent().textEdits:
             newCursor = textEdit.cursorForPosition(rect.topLeft())
             textEdit.setTextCursor(newCursor)
         return super().focusNextPrevChild(next)
 
     def boxNumber(self):
-        return _g.textEdits.index(self)
+        return self.parent().textEdits.index(self)
 
     def replace(self, match: Match, repl: str):
         document = self.document()

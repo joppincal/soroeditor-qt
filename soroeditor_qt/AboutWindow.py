@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel, QWidget
 
-from . import __global__, __version__
+from .__version__ import __version__
 from .Icon import Icon
 
 
@@ -26,7 +26,7 @@ class AboutWindow(QWidget):
         label.setOpenExternalLinks(True)
         label.setText(
             f"<p>SoroEditor そろエディタ</p>"
-            f"<p>Author: Joppincal</p><p>Version: {__version__.__version__}</p>"
+            f"<p>Author: Joppincal</p><p>Version: {__version__}</p>"
             f'<a href="https://github.com/joppincal/soroeditor-qt">Github</a>'
         )
 

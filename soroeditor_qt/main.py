@@ -3,7 +3,6 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-from . import __global__
 from .logSetting import logSetting
 from .MainWindow import MainWindow
 

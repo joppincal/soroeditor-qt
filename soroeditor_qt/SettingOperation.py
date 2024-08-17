@@ -1,11 +1,10 @@
 import copy
 from pathlib import Path
 
-import yaml as __y
+import yaml
 from PySide6.QtGui import QFontDatabase
 
-from . import DataOperation as __d
-from . import FileOperation as __f
+from . import DataOperation, FileOperation
 from .logSetting import logSetting
 
 logger = logSetting(__name__)
@@ -52,23 +51,25 @@ __projectSettingData: dict
 
 def openSettingFile() -> dict:
     dic: dict = {}
-    yml = __f.openFile(__PATH)
+    yml = FileOperation.openFile(__PATH)
     if yml:
         try:
-            dic = __y.safe_load(yml)
+            dic = yaml.safe_load(yml)
         except (
             KeyError,
             UnicodeDecodeError,
-            __y.YAMLError,
-            __y.scanner.ScannerError,
-            __y.constructor.ConstructorError,
+            yaml.YAMLError,
+            yaml.scanner.ScannerError,
+            yaml.constructor.ConstructorError,
         ) as e:
             logger.error(f"Failed to load Yaml data.: {e}")
     return dic
 
 
 def writeSettingFile(data: dict) -> bool:
-    return __f.writeToFile(__d.makeDataToYaml(data), __PATH)
+    return FileOperation.writeToFile(
+        DataOperation.makeDataToYaml(data), __PATH
+    )
 
 
 def makeNewSettingFile() -> bool:
