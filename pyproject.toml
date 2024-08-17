@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "soroeditor-qt"
-version = "0.4.0"
+version = "0.0.0"
 description = "SoroEditor - Parallel Text Editor"
 authors = ["joppincal <106348367+joppincal@users.noreply.github.com>"]
 license = "MIT License"
@@ -19,7 +19,10 @@ flake8 = "^7.0.0"
 isort = "^5.13.2"
 mypy = "^1.8.0"
 
+[tool.poetry-dynamic-versioning]
+enable = true
+format = "{base}"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"

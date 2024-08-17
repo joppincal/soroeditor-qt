@@ -1,10 +1,10 @@
 import re
-from typing import Literal
 from itertools import chain
+from typing import Literal
 
 from darkdetect import isDark
-from PySide6.QtCore import Qt, QTimer, QEvent
-from PySide6.QtGui import QColor, QPalette, QKeyEvent
+from PySide6.QtCore import QEvent, Qt, QTimer
+from PySide6.QtGui import QColor, QKeyEvent, QPalette
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialogButtonBox,
@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
 )
 
 from .SearchOperation import Match
-from . import __global__ as _g
 
 
 class SearchWindow(QWidget):
@@ -165,7 +164,7 @@ class SearchWindow(QWidget):
             self.parent().highlightMatches(matches, i)
 
     def emptyMatchesList(self):
-        return [[] for _ in _g.textEdits]
+        return [[] for _ in self.parent().textEditor.textEdits]
 
     def _getMatches(self):
         return list(chain(*self.matchesList))
@@ -189,7 +188,7 @@ class SearchWindow(QWidget):
         self.focus(match)
 
         currentPlace = self.parent().getCurrentPlace()
-        title = _g.lineEdits[currentPlace[0]].text()
+        title = self.parent().textEditor.lineEdits[currentPlace[0]].text()
         currentPlace = tuple(i + 1 for i in currentPlace)
         if not title:
             title = f"ブロック{currentPlace[0]}"

@@ -1,69 +1,47 @@
-import copy
 import os
-import re
 import sys
+from pathlib import Path
 
 from darkdetect import isDark
-from PySide6 import QtCore, QtWidgets
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import (
-    QAction,
-    QCloseEvent,
-    QFocusEvent,
-    QGuiApplication,
-    QKeySequence,
-    QPalette,
-    QPixmap,
-    QTextCharFormat,
-    QTextCursor,
-)
-from PySide6.QtWidgets import (
-    QFileDialog,
-    QLabel,
-    QLineEdit,
-    QMainWindow,
-    QMessageBox,
-    QPlainTextEdit,
-    QScrollBar,
-    QSplashScreen,
-    QWidget,
-)
+from PySide6.QtGui import QAction, QCloseEvent, QGuiApplication, QKeySequence
+from PySide6.QtWidgets import QFileDialog, QLabel, QMainWindow, QMessageBox
 
 from . import DataOperation, SettingOperation
-from . import __global__ as _g
+from .__version__ import __version__
 from .AboutWindow import AboutWindow
 from .Icon import Icon
+from .logSetting import logSetting
 from .SearchOperation import Match
 from .SearchWindow import SearchWindow
 from .SettingWindow import SettingWindow
+from .TextEditor import LineEdit, PlainTextEdit, TextEditor
 from .ThirdPartyNoticesWindow import ThirdPartyNoticesWindow
+
+logger = logSetting(__name__)
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        pixmap = QPixmap("soroeditor/src/splash.png")
-        splash = QSplashScreen(pixmap)
-        splash.setWindowFlags(Qt.SplashScreen | Qt.WindowStaysOnTopHint)
-        splash.show()
-
-        # _g.settings: 設定ファイルに保存される設定
-        # _g.projectSettings: プロジェクトファイルごとに保存される設定
-        _g.settings = SettingOperation.settingVerification(
-            self.openSettingFile()
+        # globalSettings: 設定ファイルに保存される設定
+        # projectSettings: プロジェクトファイルごとに保存される設定
+        settings = self.openSettingFile()
+        settings["Version"] = __version__
+        SettingOperation.setGlobalSettingData(settings)
+        SettingOperation.writeSettingFile(SettingOperation.globalSettingData())
+        SettingOperation.setProjectSettingData(
+            SettingOperation.globalSettingData()
         )
-        _g.settings["Version"] = _g.__version__
-        SettingOperation.writeSettingFile(_g.settings)
-        _g.projectSettings = copy.deepcopy(_g.settings)
 
         self.setWindowTitle("SoroEditor")
-        self.setWindowIcon(Icon().Icon)
+        self.setWindowIcon(Icon().AppIcon)
 
         self.makeLayout()
 
         self.currentFilePath = ""
-        self.latestData = DataOperation.makeSaveData()
+        self.latestData = self.makeSaveData()
 
         self.timer = QTimer(self)
         self.timer.setInterval(100)
@@ -72,18 +50,18 @@ class MainWindow(QMainWindow):
 
         self.reflectionSettings("All")
         self.show()
-        splash.hide()
 
         if len(sys.argv) >= 2:
-            sys.argv[1] = os.path.abspath(sys.argv[1]).replace("\\", "/")
-            self.openProjectFile(sys.argv[1])
+            projectFilePath = Path(sys.argv[-1]).absolute()
+            if projectFilePath.exists():
+                self.openProjectFile(projectFilePath.as_posix())
 
     def makeLayout(self):
         self.makeQActions()
         self.makeTextEditor()
         self.makeToolBar()
         self.makeMenu()
-        self.setCentralWidget(_g.textEditor)
+        self.setCentralWidget(self.textEditor)
 
     def makeMenu(self):
         menuBar = self.menuBar()
@@ -98,43 +76,47 @@ class MainWindow(QMainWindow):
             "helpMenu": menuBar.addMenu("ヘルプ(&H)"),
         }
 
-        menu["fileMenu"].addActions(list(_g.qAction["file"].values())[:-2])
+        menu["fileMenu"].addActions(list(self.qAction["file"].values())[:-2])
         menu["historyMenu"] = menu["fileMenu"].addMenu(
             Icon().History, "ファイル履歴(&R)"
         )
         self.setFileHistoryMenu()
         menu["fileMenu"].addSeparator()
-        menu["fileMenu"].addAction(list(_g.qAction["file"].values())[-1])
+        menu["fileMenu"].addAction(list(self.qAction["file"].values())[-1])
 
-        menu["editMenu"].addActions(list(_g.qAction["edit"].values()))
-        menu["searchMenu"].addActions(list(_g.qAction["search"].values()))
-        menu["templateMenu"].addActions(list(_g.qAction["template"].values()))
-        menu["bookmarkMenu"].addActions(list(_g.qAction["bookmark"].values()))
-        menu["settingMenu"].addActions(list(_g.qAction["setting"].values()))
-        menu["helpMenu"].addActions(list(_g.qAction["help"].values()))
+        menu["editMenu"].addActions(list(self.qAction["edit"].values()))
+        menu["searchMenu"].addActions(list(self.qAction["search"].values()))
+        menu["templateMenu"].addActions(
+            list(self.qAction["template"].values())
+        )
+        menu["bookmarkMenu"].addActions(
+            list(self.qAction["bookmark"].values())
+        )
+        menu["settingMenu"].addActions(list(self.qAction["setting"].values()))
+        menu["helpMenu"].addActions(list(self.qAction["help"].values()))
 
     def makeToolBar(self):
-        toolBarSettings = _g.projectSettings["ToolBar"]
+        toolBarSettings = SettingOperation.projectSettingData()["ToolBar"]
         toolButtonsElements = {
-            "NewFile": {"actions": [_g.qAction["file"]["NewFile"]]},
-            "OpenFile": {"actions": [_g.qAction["file"]["OpenFile"]]},
-            "SaveFile": {"actions": [_g.qAction["file"]["SaveFile"]]},
-            "SaveFileAs": {"actions": [_g.qAction["file"]["SaveFileAs"]]},
-            "Import": {"actions": [_g.qAction["file"]["Import"]]},
-            "Export": {"actions": [_g.qAction["file"]["Export"]]},
+            "NewFile": {"actions": [self.qAction["file"]["NewFile"]]},
+            "OpenFile": {"actions": [self.qAction["file"]["OpenFile"]]},
+            "SaveFile": {"actions": [self.qAction["file"]["SaveFile"]]},
+            "SaveFileAs": {"actions": [self.qAction["file"]["SaveFileAs"]]},
+            "Import": {"actions": [self.qAction["file"]["Import"]]},
+            "Export": {"actions": [self.qAction["file"]["Export"]]},
             "ProjectSetting": {
-                "actions": [_g.qAction["file"]["ProjectSetting"]]
+                "actions": [self.qAction["file"]["ProjectSetting"]]
             },
-            "Reload": {"actions": [_g.qAction["file"]["Reload"]]},
-            "FileHistory": {"actions": [_g.qAction["file"]["History"]]},
-            "Exit": {"actions": [_g.qAction["file"]["Exit"]]},
-            "Setting": {"actions": [_g.qAction["setting"]["Setting"]]},
-            "Search": {"actions": [_g.qAction["search"]["Search"]]},
-            "Replace": {"actions": [_g.qAction["search"]["Replace"]]},
-            "Template": {"actions": [_g.qAction["template"]["Template"]]},
-            "Bookmark": {"actions": [_g.qAction["bookmark"]["Bookmark"]]},
-            "Undo": {"actions": [_g.qAction["edit"]["Undo"]]},
-            "Redo": {"actions": [_g.qAction["edit"]["Redo"]]},
+            "Reload": {"actions": [self.qAction["file"]["Reload"]]},
+            "FileHistory": {"actions": [self.qAction["file"]["History"]]},
+            "Exit": {"actions": [self.qAction["file"]["Exit"]]},
+            "Setting": {"actions": [self.qAction["setting"]["Setting"]]},
+            "Search": {"actions": [self.qAction["search"]["Search"]]},
+            "Replace": {"actions": [self.qAction["search"]["Replace"]]},
+            "Template": {"actions": [self.qAction["template"]["Template"]]},
+            "Bookmark": {"actions": [self.qAction["bookmark"]["Bookmark"]]},
+            "Undo": {"actions": [self.qAction["edit"]["Undo"]]},
+            "Redo": {"actions": [self.qAction["edit"]["Redo"]]},
             "CurrentPlace": {
                 "text": "カーソルの現在位置",
                 "icon": None,
@@ -182,7 +164,7 @@ class MainWindow(QMainWindow):
         toolButtonStyle = getattr(
             Qt.ToolButtonStyle, f"ToolButton{toolButtonStyle}"
         )
-        _g.toolBars = []
+        self.toolBars = []
 
         for toolBarSetting in toolBarSettings.values():
             enable = toolBarSetting["Enable"]
@@ -229,12 +211,12 @@ QToolButton {{ border-style: solid; border-radius: 3px }}
 QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
             )
 
-            _g.toolBars.append(toolBar)
+            self.toolBars.append(toolBar)
 
     def makeQActions(self):
         icon = Icon()
-        _g.qAction = {}
-        _g.qAction["file"] = {
+        self.qAction = {}
+        self.qAction["file"] = {
             "NewFile": QAction(
                 icon=icon.NewFile,
                 text="新規作成(&N)",
@@ -306,7 +288,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 shortcut=QKeySequence("Alt+F4"),
             ),
         }
-        _g.qAction["edit"] = {
+        self.qAction["edit"] = {
             "Cut": QAction(
                 icon=icon.Cut,
                 text="カット(&T)",
@@ -357,7 +339,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 shortcut=QKeySequence("Ctrl+Shift+Z"),
             ),
         }
-        _g.qAction["search"] = {
+        self.qAction["search"] = {
             "Search": QAction(
                 icon=icon.Search,
                 text="検索(&S)",
@@ -373,7 +355,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 shortcut=QKeySequence("Ctrl+Shift+F"),
             ),
         }
-        _g.qAction["template"] = {
+        self.qAction["template"] = {
             "Template": QAction(
                 icon=icon.Template,
                 text="定型文(&T)",
@@ -382,7 +364,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 shortcut=QKeySequence("Ctrl+T"),
             ),
         }
-        _g.qAction["bookmark"] = {
+        self.qAction["bookmark"] = {
             "Bookmark": QAction(
                 icon=icon.Bookmark,
                 text="付箋(&B)",
@@ -391,7 +373,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 shortcut=QKeySequence("Ctrl+B"),
             ),
         }
-        _g.qAction["setting"] = {
+        self.qAction["setting"] = {
             "Setting": QAction(
                 icon=icon.Setting,
                 text="設定(&O)",
@@ -399,7 +381,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 triggered=self.openSubWindow("SettingWindow"),
                 shortcut=QKeySequence("Ctrl+Shift+P"),
             ),
-            "ProjectSetting": _g.qAction["file"]["ProjectSetting"],
+            "ProjectSetting": self.qAction["file"]["ProjectSetting"],
             "FullScreen": QAction(
                 icon=icon.FullScreen,
                 text="全画面表示(F)",
@@ -408,7 +390,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 shortcut=QKeySequence("F11"),
             ),
         }
-        _g.qAction["help"] = {
+        self.qAction["help"] = {
             "Help": QAction(
                 icon=icon.Help,
                 text="ヘルプ(&H)",
@@ -437,16 +419,25 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         }
 
     def makeTextEditor(self):
-        _g.textEditor = TextEditor(self)
+        self.textEditor = TextEditor(self)
         self.reflectionSettings("Font")
+
+    def makeSaveData(self):
+        texts = self.textEditor.getAllCurrentText()
+        titles = self.textEditor.getAllCurrentTitle()
+        return DataOperation.makeSaveData(texts, titles)
 
     def saveFile(self) -> bool:
         if self.currentFilePath:
-            ret = DataOperation.saveProjectFile(self.currentFilePath)
+            texts = self.textEditor.getAllCurrentText()
+            titles = self.textEditor.getAllCurrentTitle()
+            ret = DataOperation.saveProjectFile(
+                texts, titles, self.currentFilePath
+            )
         else:
             ret = self.saveFileAs()
         if ret:
-            self.latestData = DataOperation.makeSaveData()
+            self.latestData = self.makeSaveData()
         return ret
 
     def saveFileAs(self) -> bool:
@@ -457,19 +448,21 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
             "SoroEditor Project File(*.sepf *.sep)",
         )[0]
         if filePath:
-            ret = DataOperation.saveProjectFile(filePath)
+            texts = self.textEditor.getAllCurrentText()
+            titles = self.textEditor.getAllCurrentTitle()
+            ret = DataOperation.saveProjectFile(texts, titles, filePath)
         else:
             ret = False
         if ret:
             self.currentFilePath = filePath
             self.addFileHistory(filePath)
             self.setFileHistoryMenu()
-            self.latestData = DataOperation.makeSaveData()
+            self.latestData = self.makeSaveData()
             self.setWindowTitle(f"SoroEditor - {filePath}")
         return ret
 
     def isDataChanged(self) -> bool:
-        return self.latestData != DataOperation.makeSaveData()
+        return self.latestData != self.makeSaveData()
 
     def openProjectFile(self, filePath: str = ""):
         if self.isDataChanged():
@@ -495,18 +488,18 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         if filePath:
             data = DataOperation.openProjectFile(filePath)
             if data:
-                DataOperation.setTextInTextBoxes(data["data"])
+                self.textEditor.setTextInTextBoxes(data["data"])
                 self.currentFilePath = filePath
                 self.addFileHistory(filePath)
                 self.setFileHistoryMenu()
 
-                data["settings"]["Version"] = _g.__version__
-                _g.projectSettings.update(
+                data["settings"]["Version"] = __version__
+                SettingOperation.setProjectSettingData(
                     SettingOperation.settingVerification(data["settings"])
                 )
                 self.reflectionSettings("All")
 
-                self.latestData = DataOperation.makeSaveData()
+                self.latestData = self.makeSaveData()
                 return True
             else:
                 QMessageBox.information(
@@ -525,7 +518,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 fileHistory = settings["FileHistory"]
                 fileHistory.remove(filePath)
                 SettingOperation.writeSettingFile(settings)
-                _g.settings["FileHistory"] = fileHistory
+                SettingOperation.setGlobalSettingData(settings)
                 self.setFileHistoryMenu()
             return ret
 
@@ -543,7 +536,11 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                     shortcut=QKeySequence("Ctrl+R") if i == 0 else False,
                 )
                 for i, filePath in enumerate(
-                    list(dict.fromkeys(_g.settings["FileHistory"]))[:10]
+                    list(
+                        dict.fromkeys(
+                            SettingOperation.globalSettingData()["FileHistory"]
+                        )
+                    )[:10]
                 )
             ]
         )
@@ -563,7 +560,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         fileHistory.insert(0, filePath)
         fileHistory = list(dict.fromkeys(fileHistory))
         settings["FileHistory"] = fileHistory
-        _g.settings["FileHistory"] = fileHistory
+        SettingOperation.setGlobalSettingData(settings)
         SettingOperation.writeSettingFile(settings)
 
     def dataChangedAlert(self) -> QMessageBox:
@@ -592,11 +589,11 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         widget = self.focusWidget()
         if widget:
             if isinstance(widget, PlainTextEdit):
-                box = _g.textEdits.index(widget)
+                box = self.textEditor.textEdits.index(widget)
                 block = widget.textCursor().blockNumber()
                 positionInBlock = widget.textCursor().positionInBlock()
             elif isinstance(widget, LineEdit):
-                box = _g.lineEdits.index(widget)
+                box = self.textEditor.lineEdits.index(widget)
                 block = None
                 positionInBlock = widget.cursorPosition()
             else:
@@ -608,10 +605,10 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         if ret:
             box, block, positionInBlock = ret
 
-            title = _g.lineEdits[box].text()
+            title = self.textEditor.lineEdits[box].text()
             for widget in [
                 widget
-                for toolBar in _g.toolBars
+                for toolBar in self.toolBars
                 for widget in toolBar.children()
             ]:
                 if widget.objectName() == "CurrentPlace":
@@ -627,24 +624,27 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
             return
 
     def search(self, pattern, regex):
-        return [textEdit.search(pattern, regex) for textEdit in _g.textEdits]
+        return [
+            textEdit.search(pattern, regex)
+            for textEdit in self.textEditor.textEdits
+        ]
 
     def replace(self, match: Match, repl: str):
-        textEdit = _g.textEdits[match.box]
+        textEdit = self.textEditor.textEdits[match.box]
         textEdit.replace(match, repl)
 
     def replaceAll(self, matches: list[Match], repl: str, box: int):
-        _g.textEdits[box].replaceAll(matches, repl)
+        self.textEditor.textEdits[box].replaceAll(matches, repl)
 
     def highlightMatches(self, matches: list[Match], box: int):
-        _g.textEdits[box].highlightMatches(matches)
+        self.textEditor.textEdits[box].highlightMatches(matches)
 
     def focus(self, match: Match):
-        for textEdit in _g.textEdits:
+        for textEdit in self.textEditor.textEdits:
             cursor = textEdit.textCursor()
             cursor.clearSelection()
             textEdit.setTextCursor(cursor)
-        _g.textEdits[match.box].focus(match)
+        self.textEditor.textEdits[match.box].focus(match)
 
     def loop(self):
         title = "SoroEditor - "
@@ -661,7 +661,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
         if not settings:
             settings = SettingOperation.defaultSettingData()
             SettingOperation.makeNewSettingFile()
-        return settings
+        return SettingOperation.settingVerification(settings)
 
     def reflectionSettings(self, item: str):
         """Reflects the settings entered for the item.
@@ -692,7 +692,7 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 function()
 
     def reflectSize(self):
-        size = _g.projectSettings.get("Size")
+        size = SettingOperation.projectSettingData().get("Size")
         ratio = QGuiApplication.primaryScreen().devicePixelRatio()
         screenSize = QGuiApplication.primaryScreen().size().toTuple()
         if size:
@@ -711,37 +711,37 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 self.moveWindowToCenter()
 
     def reflectResizable(self):
-        resizable = _g.projectSettings.get("Resizable")
+        resizable = SettingOperation.projectSettingData().get("Resizable")
         if resizable:
             self.setFixedSize(0xFFFFFF, 0xFFFFFF)
         else:
             self.setFixedSize(self.size())
 
     def reflectFontFamily(self):
-        fontFamily = _g.projectSettings.get("Font")
-        fontStyle = _g.projectSettings.get("FontStyle")
+        fontFamily = SettingOperation.projectSettingData().get("Font")
+        fontStyle = SettingOperation.projectSettingData().get("FontStyle")
         if fontFamily:
-            font = _g.textEditor.font()
+            font = self.textEditor.font()
             font.setFamily(fontFamily)
             font.setStyleName(fontStyle)
-            _g.textEditor.setFont(font)
+            self.textEditor.setFont(font)
 
     def reflectFontSize(self):
-        fontSize = _g.projectSettings.get("FontSize")
+        fontSize = SettingOperation.projectSettingData().get("FontSize")
         if fontSize:
-            font = _g.textEditor.font()
+            font = self.textEditor.font()
             font.setPointSize(fontSize)
-            _g.textEditor.setFont(font)
+            self.textEditor.setFont(font)
 
     def reflectToolBar(self):
-        for toolBar in _g.toolBars:
+        for toolBar in self.toolBars:
             self.removeToolBar(toolBar)
         self.makeToolBar()
 
     def toggleFullScreenMode(self):
         if self.isFullScreen():
             self.showNormal()
-            if _g.projectSettings["Size"] == "FullScreen":
+            if SettingOperation.projectSettingData()["Size"] == "FullScreen":
                 self.resize(*SettingOperation.defaultSettingData()["Size"])
                 self.moveWindowToCenter()
             else:
@@ -818,278 +818,3 @@ QToolButton:hover:!pressed {{ background-color: {colorName} }}"""
                 self.subWindows[type_].raise_()
 
         return inner
-
-
-class TextEditor(QWidget):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.parent = parent
-        self.makeLayout()
-
-    def makeLayout(self):
-        _g.textEdits = [PlainTextEdit() for _ in range(3)]  # temporary
-        _g.lineEdits = [LineEdit() for _ in range(3)]  # temporary
-        _g.textBoxStretches = [15, 60, 25]  # temporary
-
-        for textEdit in _g.textEdits:
-            textEdit.verticalScrollBar().valueChanged.connect(
-                self.textBoxScrollBarValueChanged
-            )
-            textEdit.setVerticalScrollBarPolicy(
-                Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-            )
-
-            textEdit.cursorPositionChanged.connect(self.cursorPositionChanged)
-            textEdit.focusReceived.connect(self.focusReceived)
-            textEdit.setTabChangesFocus(True)
-        for lineEdit in _g.lineEdits:
-            lineEdit.cursorPositionChanged.connect(self.cursorPositionChanged)
-            lineEdit.focusReceived.connect(self.focusReceived)
-            if lineEdit.style().name() == "windows11":
-                lineEdit.setTextMargins(-5, 0, 0, 0)
-
-        self.mainScrollBar = QScrollBar()
-        self.mainScrollBar.valueChanged.connect(self.mainScrollBarValueChanged)
-        self.mainScrollBar.setRange(
-            0,
-            max(
-                [
-                    textBox.verticalScrollBar().maximum()
-                    for textBox in _g.textEdits
-                ]
-            ),
-        )
-        self.mainScrollBar.setPageStep(
-            max(
-                [
-                    textBox.verticalScrollBar().pageStep()
-                    for textBox in _g.textEdits
-                ]
-            )
-        )
-
-        self.hlayout = QtWidgets.QHBoxLayout(self)
-        self.vlayouts = [
-            QtWidgets.QVBoxLayout() for _ in range(len(_g.textEdits))
-        ]
-
-        for vlayout, lineEdit, textEdit, stretch in zip(
-            self.vlayouts, _g.lineEdits, _g.textEdits, _g.textBoxStretches
-        ):
-            vlayout.addWidget(lineEdit)
-            vlayout.addWidget(textEdit)
-            self.hlayout.addLayout(vlayout, stretch)
-
-        for t0, t1 in zip(
-            _g.textEdits, (_g.textEdits[1:] + _g.textEdits[:1])[:-1]
-        ):
-            self.parent.setTabOrder(t0, t1)
-        for t0, t1 in zip(
-            _g.lineEdits, (_g.lineEdits[1:] + _g.lineEdits[:1])[:-1]
-        ):
-            self.parent.setTabOrder(t0, t1)
-
-        self.hlayout.addWidget(self.mainScrollBar)
-
-        self.addReturn()
-        self.moveToTop()
-
-    def moveToTop(self):
-        for textBox in _g.textEdits:
-            textBox.verticalScrollBar().setValue(0)
-            cursor = QTextCursor(textBox.firstVisibleBlock())
-            textBox.setTextCursor(cursor)
-            textBox.textCursor()
-
-    def addReturn(self):
-        for textBox in _g.textEdits:
-            while (
-                textBox.verticalScrollBar().maximum()
-                <= textBox.verticalScrollBar().pageStep()
-            ):
-                textBox.appendPlainText("\n")
-                textBox.verticalScrollBar().setValue(0)
-            while (
-                textBox.verticalScrollBar().maximum()
-                == textBox.verticalScrollBar().value()
-            ):
-                textBox.verticalScrollBar().setValue(
-                    textBox.verticalScrollBar().maximum() - 2
-                )
-                textBox.appendPlainText("\n")
-                textBox.verticalScrollBar().setValue(
-                    textBox.verticalScrollBar().maximum() - 2
-                )
-
-    @QtCore.Slot()
-    def textChanged(self):
-        return
-
-    @QtCore.Slot()
-    def textBoxScrollBarValueChanged(self):
-        self.addReturn()
-
-        newValue = self.sender().value()
-        maxMaximum = max(
-            [textBox.verticalScrollBar().maximum() for textBox in _g.textEdits]
-        )
-        pageStep = max(
-            [
-                textBox.verticalScrollBar().pageStep()
-                for textBox in _g.textEdits
-            ]
-        )
-
-        self.mainScrollBar.setRange(0, maxMaximum)
-        self.mainScrollBar.setValue(newValue)
-        self.mainScrollBar.setPageStep(pageStep)
-
-    @QtCore.Slot()
-    def mainScrollBarValueChanged(self):
-        """
-        メインスクロールバーの値が変更された際に各テキストボックスのスクロールバーに値を反映する
-        """
-        value = self.mainScrollBar.value()
-        for textBox in _g.textEdits:
-            bar = textBox.verticalScrollBar()
-            diff = value - bar.maximum()
-            if diff > 0:
-                textBox.appendPlainText("\n" * diff)
-            else:
-                textBox.verticalScrollBar().setValue(value)
-
-    @QtCore.Slot()
-    def cursorPositionChanged(self):
-        self.parent.setCurrentPlaceLabel()
-
-    @QtCore.Slot()
-    def focusReceived(self):
-        self.parent.setCurrentPlaceLabel()
-
-
-class PlainTextEdit(QPlainTextEdit):
-    focusReceived = QtCore.Signal()
-
-    def __init__(self):
-        super().__init__()
-        palette = self.palette()
-
-        # 非アクティブ状態（フォーカスがない場合）の選択色
-        highlightColor = palette.color(QPalette.ColorRole.Highlight)
-        highlightColor.setAlphaF(0.7)
-        palette.setColor(QPalette.Inactive, QPalette.Highlight, highlightColor)
-        highlightedTextColor = palette.color(
-            QPalette.ColorRole.HighlightedText
-        )
-        palette.setColor(
-            QPalette.ColorGroup.Inactive,
-            QPalette.ColorRole.HighlightedText,
-            highlightedTextColor,
-        )
-
-        self.setPalette(palette)
-
-    def focusInEvent(self, event: QFocusEvent) -> None:
-        super().focusInEvent(event)
-        self.focusReceived.emit()
-
-    def focusNextPrevChild(self, next: bool) -> bool:
-        rect = self.cursorRect()
-        for textEdit in _g.textEdits:
-            newCursor = textEdit.cursorForPosition(rect.topLeft())
-            textEdit.setTextCursor(newCursor)
-        return super().focusNextPrevChild(next)
-
-    def boxNumber(self):
-        return _g.textEdits.index(self)
-
-    def replace(self, match: Match, repl: str):
-        document = self.document()
-        cursor = QTextCursor(document)
-        cursor.setPosition(match.start)
-        cursor.setPosition(match.end, QTextCursor.MoveMode.KeepAnchor)
-        cursor.insertText(repl)
-
-    def replaceAll(self, matches: list[Match], repl: str):
-        document = self.document()
-        cursors: list[QTextCursor] = []
-        for match in matches:
-            cursor = QTextCursor(document)
-            cursor.setPosition(match.start)
-            cursor.setPosition(match.end, QTextCursor.MoveMode.KeepAnchor)
-            cursors.append(cursor)
-
-        for cursor in cursors:
-            cursor.insertText(repl)
-
-    def findMatches(self, string, pattern, regex):
-        box = self.boxNumber()
-        matches = []
-        if regex:
-            try:
-                pattern = re.compile(pattern)
-                for match in pattern.finditer(string):
-                    matches.append(
-                        Match(match.start(), match.end(), match.group(), box)
-                    )
-            except re.error:
-                return []
-        else:
-            start = 0
-            while True:
-                index = string.find(pattern, start)
-                if index == -1:
-                    break
-                matches.append(
-                    Match(index, index + len(pattern), pattern, box)
-                )
-                start = index + 1
-        return matches
-
-    def search(self, pattern: str, regex: bool):
-        document = self.document()
-        string = document.toPlainText()
-
-        # Matchオブジェクトを取得
-        return self.findMatches(string, pattern, regex)
-
-    def highlightMatches(self, matches: list[Match]):
-        document = self.document()
-        highlightFormat = QTextCharFormat()
-
-        # 既存のハイライトを削除
-        cursor = QTextCursor(document)
-        cursor.beginEditBlock()
-        cursor.select(QTextCursor.Document)
-        cursor.setCharFormat(QTextCharFormat())
-        cursor.endEditBlock()
-
-        highlightColor = self.palette().color(QPalette.ColorRole.Window)
-        if isDark():
-            highlightColor.setRgbF(0.4, 0.4, 0.4, 1.0)
-        else:
-            highlightColor.setRgbF(0.6, 0.6, 0.6, 1.0)
-        highlightFormat.setBackground(highlightColor)
-
-        for match in matches:
-            cursor = QTextCursor(document)
-            cursor.setPosition(match.start)
-            cursor.setPosition(match.end, QTextCursor.MoveMode.KeepAnchor)
-            cursor.mergeCharFormat(highlightFormat)
-
-    def focus(self, match: Match):
-        self.setFocus()
-        document = self.document()
-        cursor = QTextCursor(document)
-        cursor.setPosition(match.start)
-        cursor.setPosition(match.end, QTextCursor.KeepAnchor)
-        self.setTextCursor(cursor)
-        self.ensureCursorVisible()
-
-
-class LineEdit(QLineEdit):
-    focusReceived = QtCore.Signal()
-
-    def focusInEvent(self, event: QFocusEvent) -> None:
-        super().focusInEvent(event)
-        self.focusReceived.emit()

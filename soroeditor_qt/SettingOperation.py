@@ -1,13 +1,15 @@
 import copy
+from pathlib import Path
 
-import yaml as __y
+import yaml
 from PySide6.QtGui import QFontDatabase
 
-from soroeditor_qt import DataOperation as __d
-from soroeditor_qt import FileOperation as __f
-from soroeditor_qt import __global__ as __g
+from . import DataOperation, FileOperation
+from .logSetting import logSetting
 
-__PATH = "./setting.yaml"
+logger = logSetting(__name__)
+
+__PATH = Path.home() / ".soroeditor" / "setting.yaml"
 
 __DEFAULTSETTINGDATA = {
     "FileHistory": [],
@@ -42,26 +44,32 @@ __DEFAULTSETTINGDATA = {
     "Version": "0.0.0",
 }
 
+__globalSettingData: dict
+
+__projectSettingData: dict
+
 
 def openSettingFile() -> dict:
     dic: dict = {}
-    yml = __f.openFile(__PATH)
+    yml = FileOperation.openFile(__PATH)
     if yml:
         try:
-            dic = __y.safe_load(yml)
+            dic = yaml.safe_load(yml)
         except (
             KeyError,
             UnicodeDecodeError,
-            __y.YAMLError,
-            __y.scanner.ScannerError,
-            __y.constructor.ConstructorError,
+            yaml.YAMLError,
+            yaml.scanner.ScannerError,
+            yaml.constructor.ConstructorError,
         ) as e:
-            __g.logger.error(f"Failed to load Yaml data.: {e}")
+            logger.error(f"Failed to load Yaml data.: {e}")
     return dic
 
 
 def writeSettingFile(data: dict) -> bool:
-    return __f.writeToFile(__d.makeDataToYaml(data), __PATH)
+    return FileOperation.writeToFile(
+        DataOperation.makeDataToYaml(data), __PATH
+    )
 
 
 def makeNewSettingFile() -> bool:
@@ -125,3 +133,23 @@ def settingVerification(dic: dict) -> dict:
 
 def defaultSettingData() -> dict:
     return copy.deepcopy(__DEFAULTSETTINGDATA)
+
+
+def globalSettingData() -> dict:
+    return copy.deepcopy(__globalSettingData)
+
+
+def setGlobalSettingData(dic: dict):
+    dic = settingVerification(dic)
+    global __globalSettingData
+    __globalSettingData = dic
+
+
+def projectSettingData() -> dict:
+    return copy.deepcopy(__projectSettingData)
+
+
+def setProjectSettingData(dic: dict):
+    dic = settingVerification(dic)
+    global __projectSettingData
+    __projectSettingData = dic
