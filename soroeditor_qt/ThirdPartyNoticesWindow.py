@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QFontDatabase
@@ -13,11 +15,9 @@ from . import FileOperation
 
 class ThirdPartyNoticesWindow(QWidget):
     def __init__(self, parent) -> None:
-        super().__init__(parent)
+        super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowTitle("SoroEditor - ライセンス情報")
         self.resize(700, 500)
-        self.setWindowFlags(Qt.WindowType.Dialog)
-        self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.getThirdPartyNotices()
         self.makeLayout()
 
@@ -69,7 +69,9 @@ class ThirdPartyNoticesWindow(QWidget):
 
     def getThirdPartyNotices(self):
         global ThirdPartyNotices
-        ThirdPartyNotices = FileOperation.openFile("./ThirdPartyNotices.txt")
+        ThirdPartyNotices = FileOperation.openFile(
+            Path(__file__).parents[1] / "ThirdPartyNotices.txt"
+        )
         ThirdPartyNotices = [
             text.lstrip("\n").rstrip("\n")
             for text in ThirdPartyNotices.split(
