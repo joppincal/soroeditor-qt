@@ -2,6 +2,7 @@ import copy
 import os
 import re
 import sys
+from pathlib import Path
 
 from darkdetect import isDark
 from PySide6 import QtCore, QtWidgets
@@ -73,8 +74,9 @@ class MainWindow(QMainWindow):
         self.show()
 
         if len(sys.argv) >= 2:
-            sys.argv[1] = os.path.abspath(sys.argv[1]).replace("\\", "/")
-            self.openProjectFile(sys.argv[1])
+            projectFilePath = Path(sys.argv[-1]).absolute()
+            if projectFilePath.exists():
+                self.openProjectFile(projectFilePath.as_posix())
 
     def makeLayout(self):
         self.makeQActions()
