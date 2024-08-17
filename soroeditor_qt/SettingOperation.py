@@ -1,4 +1,5 @@
 import copy
+from pathlib import Path
 
 import yaml as __y
 from PySide6.QtGui import QFontDatabase
@@ -9,7 +10,7 @@ from .logSetting import logSetting
 
 logger = logSetting(__name__)
 
-__PATH = "./setting.yaml"
+__PATH = Path.home() / ".soroeditor" / "setting.yaml"
 
 __DEFAULTSETTINGDATA = {
     "FileHistory": [],
